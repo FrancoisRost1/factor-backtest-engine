@@ -234,7 +234,18 @@ factor-backtest-engine/
 
 ## Project status
 
-🔲 NOT STARTED — scaffolding phase
+✅ COMPLETE — pushed to GitHub 2026-04-05
+
+### Key results
+- 503 tickers, 10-year backtest (2016-2026), 72 combinations
+- Quality (ROE) is the dominant signal: Sharpe 1.55, IC 0.084
+- Momentum: weak IC but decent portfolio returns
+- Value/Size/Low-Vol IC negative due to point-in-time contamination
+- 166 tests passing, Codex-audited (10 findings addressed)
+- Streamlit dashboard: 4 tabs, dark mode
+
+### GitHub
+github.com/FrancoisRost1/factor-backtest-engine
 
 ---
 

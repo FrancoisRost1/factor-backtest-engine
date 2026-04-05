@@ -1,5 +1,7 @@
 # Factor Model + Backtesting Engine
 
+*Built by a CFA student to demonstrate institutional-grade factor research.*
+
 A systematic multi-factor equity model covering the S&P 500 universe (~500 stocks). It computes five academic factors at each rebalance date, normalizes them to cross-sectional percentile ranks, constructs long-only and long-short quintile portfolios, and runs a rigorous backtest from 2016 to 2026 with full institutional analytics. Built to demonstrate that factor investing is an engineering problem as much as a finance one — signal construction, lookahead prevention, cost modeling, and statistical evaluation all have to be right.
 
 ![Dashboard](Screenshot.png)
@@ -152,3 +154,9 @@ factor-backtest-engine/
 | streamlit | Interactive dashboard |
 | plotly | Charts within the dashboard |
 | pytest | 166-test suite covering factors, portfolio, analytics, end-to-end |
+
+---
+
+## Author
+
+François Rostaing — [GitHub](https://github.com/FrancoisRost1)
