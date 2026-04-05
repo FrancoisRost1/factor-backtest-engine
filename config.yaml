@@ -1,0 +1,61 @@
+# config.yaml — Factor Model + Backtesting Engine
+
+universe:
+  index: "sp500"
+  benchmark: "SPY"
+
+data:
+  start_date: "2014-01-01"
+  end_date: "2026-04-01"
+  eval_start: "2016-01-01"
+  price_column: "Adj Close"
+
+factors:
+  value:
+    metric: "earnings_yield"
+    direction: 1
+  momentum:
+    metric: "momentum_12_1"
+    direction: 1
+    lookback_months: 12
+    skip_months: 1
+  quality:
+    metric: "roe"
+    direction: 1
+  size:
+    metric: "log_market_cap"
+    direction: -1
+  low_volatility:
+    metric: "rolling_vol_60d"
+    direction: -1
+    lookback_days: 60
+
+normalization:
+  method: "percentile"
+
+composite:
+  method: "equal_weight"
+  min_valid_factors: 3
+
+portfolio:
+  n_quantiles: 5
+  long_quintile: 5
+  short_quintile: 1
+  weighting_schemes:
+    - "equal"
+    - "cap_weight"
+
+rebalancing:
+  frequencies:
+    - "monthly"
+    - "quarterly"
+    - "annual"
+
+transaction_costs:
+  cost_per_trade_bps: 10
+  cost_per_trade: 0.0010
+
+analytics:
+  risk_free_rate: 0.0
+  annualization_factor: 252
+  monthly_annualization: 12
