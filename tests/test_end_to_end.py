@@ -135,6 +135,13 @@ def test_config() -> dict:
         "transaction_costs": {
             "cost_per_trade": 0.0010,
         },
+        "composite": {
+            "min_valid_factors": 3,
+        },
+        "analytics": {
+            "risk_free_rate": 0.0,
+            "annualization_factor": 252,
+        },
     }
 
 

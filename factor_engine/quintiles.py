@@ -65,6 +65,7 @@ def assign_quintiles(
 def compute_quintile_returns(
     quintile_assignments: pd.Series,
     returns: pd.Series,
+    n_quantiles: int = 5,
 ) -> pd.Series:
     """
     Compute the equal-weighted mean return for each quintile bucket.
@@ -75,18 +76,20 @@ def compute_quintile_returns(
     Parameters
     ----------
     quintile_assignments : pd.Series
-        Quintile label (1–5) per ticker. NaN tickers are excluded.
+        Quintile label (1–n_quantiles) per ticker. NaN tickers are excluded.
     returns : pd.Series
         Realised returns for the same period. Index = tickers.
+    n_quantiles : int
+        Number of quantile buckets. Read from config['portfolio']['n_quantiles'].
 
     Returns
     -------
     pd.Series
-        Mean return per quintile; index = [1, 2, 3, 4, 5].
+        Mean return per quintile; index = [1, ..., n_quantiles].
         NaN for quintiles with no members.
     """
     result = {}
-    for q in range(1, 6):
+    for q in range(1, n_quantiles + 1):
         tickers_in_q = quintile_assignments[quintile_assignments == q].index
         if len(tickers_in_q) == 0:
             result[q] = np.nan

@@ -99,6 +99,8 @@ def run_all_backtests(
         .get("low_volatility", {})
         .get("lookback_days", 60)
     )
+    min_valid_factors = config["composite"]["min_valid_factors"]
+    annualization_factor = config["analytics"]["annualization_factor"]
 
     results = {}
 
@@ -133,6 +135,8 @@ def run_all_backtests(
                     n_quantiles=n_quantiles,
                     cost_per_unit=cost_per_unit,
                     lookback_days=lookback_days,
+                    min_valid_factors=min_valid_factors,
+                    annualization_factor=annualization_factor,
                 )
                 results[factor][freq][wt] = {
                     "long_only": lo_result,
@@ -154,6 +158,8 @@ def _run_single_factor_backtest(
     n_quantiles: int,
     cost_per_unit: float,
     lookback_days: int,
+    min_valid_factors: int = 3,
+    annualization_factor: int = 252,
 ) -> Tuple[dict, dict]:
     """
     Backtest one factor with one frequency and one weighting scheme.
@@ -185,6 +191,10 @@ def _run_single_factor_backtest(
         Transaction cost per unit of turnover (e.g., 0.001 = 10 bps).
     lookback_days : int
         Lookback window for rolling volatility computation.
+    min_valid_factors : int
+        Minimum valid factor scores to compute a composite (from config).
+    annualization_factor : int
+        Trading days per year for volatility annualisation (from config).
     """
     col = FACTOR_CONFIG[factor_name]["column"]
     invert = FACTOR_CONFIG[factor_name]["invert"]
@@ -207,7 +217,8 @@ def _run_single_factor_backtest(
 
         # ── Factor scores at t_start (no lookahead) ────────────────────────
         factors_df = compute_all_factors(
-            fundamentals, prices, t_start, lookback_days
+            fundamentals, prices, t_start, lookback_days,
+            min_valid_factors, annualization_factor,
         )
         if factors_df.empty or col not in factors_df.columns:
             continue
@@ -254,7 +265,7 @@ def _run_single_factor_backtest(
         ls_gross = _portfolio_return(ls_weights, stock_rets)
 
         # ── Quintile returns (Q1–Q5 equal-weighted mean) ──────────────────
-        qr = compute_quintile_returns(quintiles, stock_rets)
+        qr = compute_quintile_returns(quintiles, stock_rets, n_quantiles)
 
         # ── IC: factor score vs forward stock returns ──────────────────────
         ic_val = compute_ic(scores, stock_rets)

@@ -71,6 +71,7 @@ def compute_rolling_volatility(
     prices_df: pd.DataFrame,
     as_of_date,
     lookback_days: int = 60,
+    annualization_factor: int = 252,
 ) -> pd.Series:
     """
     Compute annualized rolling volatility of daily returns at as_of_date.
@@ -89,6 +90,9 @@ def compute_rolling_volatility(
         Computation date. Data after this date is ignored.
     lookback_days : int
         Number of trading days in the volatility window (default 60 ≈ 3 months).
+    annualization_factor : int
+        Trading days per year for annualising daily volatility.
+        Read from config['analytics']['annualization_factor'].
 
     Returns
     -------
@@ -106,8 +110,8 @@ def compute_rolling_volatility(
     recent_prices = prices.iloc[-(lookback_days + 1):]
     daily_returns = recent_prices.pct_change().dropna()
 
-    # Annualize: daily std × sqrt(252 trading days/year)
-    vol = daily_returns.std() * np.sqrt(252)
+    # Annualize: daily std × sqrt(trading days/year)
+    vol = daily_returns.std() * np.sqrt(annualization_factor)
 
     vol.name = "rolling_vol_60d"
     return vol

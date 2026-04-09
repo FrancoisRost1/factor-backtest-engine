@@ -79,6 +79,7 @@ def run():
 
     # Step 4: Compute analytics for each backtest
     print("Step 4: Computing analytics...")
+    risk_free = config["analytics"]["risk_free_rate"]
     summary_rows = []
 
     for factor in all_results:
@@ -97,6 +98,7 @@ def run():
                         bt["benchmark_returns"],
                         bt["turnover"],
                         periods_per_year=ppy,
+                        risk_free=risk_free,
                     )
                     # Performance metrics (net)
                     metrics_net = compute_all_metrics(
@@ -104,6 +106,7 @@ def run():
                         bt["benchmark_returns"],
                         bt["turnover"],
                         periods_per_year=ppy,
+                        risk_free=risk_free,
                     )
                     # IC summary
                     ic_stats = ic_summary(bt["ic_series"])

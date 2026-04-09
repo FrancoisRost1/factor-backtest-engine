@@ -8,7 +8,6 @@ data:
   start_date: "2014-01-01"
   end_date: "2026-04-01"
   eval_start: "2016-01-01"
-  price_column: "Adj Close"
 
 factors:
   value:
@@ -52,7 +51,6 @@ rebalancing:
     - "annual"
 
 transaction_costs:
-  cost_per_trade_bps: 10
   cost_per_trade: 0.0010
 
 analytics:

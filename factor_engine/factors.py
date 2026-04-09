@@ -29,7 +29,6 @@ from factor_engine.normalize import percentile_rank
 
 # Factors where lower raw value = better signal = should rank highest
 _INVERT_FOR_COMPOSITE = ["log_market_cap", "rolling_vol_60d"]
-_COMPOSITE_MIN_VALID = 3   # min valid factor scores required to assign a composite
 
 
 def compute_earnings_yield(fundamentals: pd.DataFrame) -> pd.Series:
@@ -137,6 +136,8 @@ def compute_all_factors(
     prices_df: pd.DataFrame,
     as_of_date,
     lookback_days: int = 60,
+    min_valid_factors: int = 3,
+    annualization_factor: int = 252,
 ) -> pd.DataFrame:
     """
     Compute all five factors and combine into a single cross-sectional DataFrame.
@@ -156,6 +157,12 @@ def compute_all_factors(
         The date at which to compute all factors.
     lookback_days : int
         Volatility lookback window in trading days.
+    min_valid_factors : int
+        Minimum number of non-NaN factor scores required to compute a
+        composite score. Read from config['composite']['min_valid_factors'].
+    annualization_factor : int
+        Trading days per year, passed through to compute_rolling_volatility.
+        Read from config['analytics']['annualization_factor'].
 
     Returns
     -------
@@ -182,7 +189,7 @@ def compute_all_factors(
     # Price-based factors (only for valid tickers, no lookahead)
     price_subset = prices_df[valid_tickers]
     momentum = compute_momentum_12_1(price_subset, as_of_date)
-    vol = compute_rolling_volatility(price_subset, as_of_date, lookback_days)
+    vol = compute_rolling_volatility(price_subset, as_of_date, lookback_days, annualization_factor)
 
     result = pd.DataFrame(
         {
@@ -196,7 +203,7 @@ def compute_all_factors(
     )
 
     # Composite factor: percentile-rank each of the 5 factors, then average.
-    # Stocks with fewer than _COMPOSITE_MIN_VALID valid factor scores are excluded
+    # Stocks with fewer than min_valid_factors valid factor scores are excluded
     # (NaN composite) — the signal would be too noisy with only 1-2 inputs.
     # Ranking is repeated here (not deferred to backtest.py) so that the composite
     # reflects a true equal-weighted blend of all five signals.
@@ -211,7 +218,7 @@ def compute_all_factors(
     ranked_5 = percentile_rank(raw_5, invert_columns=_INVERT_FOR_COMPOSITE)
     valid_count = ranked_5.notna().sum(axis=1)
     composite = ranked_5.mean(axis=1, skipna=True)
-    composite[valid_count < _COMPOSITE_MIN_VALID] = np.nan
+    composite[valid_count < min_valid_factors] = np.nan
     result["composite_score"] = composite
 
     return result
