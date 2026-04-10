@@ -34,47 +34,51 @@ def construct_long_only(
     quintile_assignments: pd.Series,
     market_caps: pd.Series = None,
     weighting: str = "equal",
+    long_quintile: int = 5,
 ) -> pd.Series:
     """
-    Build a long-only portfolio from Q5 (top-quintile) stocks.
+    Build a long-only portfolio from the top-quintile stocks.
 
-    Weights sum to exactly 1.0. Only stocks in quintile 5 receive nonzero weight.
-    No negative weights are ever produced.
+    Weights sum to exactly 1.0. Only stocks in `long_quintile` receive nonzero
+    weight. No negative weights are ever produced.
 
     Parameters
     ----------
     quintile_assignments : pd.Series
-        Quintile label (1–5) per ticker. Only label 5 is included.
+        Quintile label (1–n_quantiles) per ticker.
     market_caps : pd.Series or None
         Market capitalisation per ticker. Required for cap_weight.
     weighting : str
-        'equal'     — equal weight across all Q5 stocks.
-        'cap_weight' — weight proportional to market cap within Q5.
+        'equal'     — equal weight across all top-bucket stocks.
+        'cap_weight' — weight proportional to market cap within the bucket.
+    long_quintile : int
+        Quintile label representing the top bucket (highest factor score).
+        Read from config['portfolio']['long_quintile']. Defaults to 5.
 
     Returns
     -------
     pd.Series
-        Portfolio weights. Index = Q5 tickers only. Values sum to 1.0.
+        Portfolio weights. Index = top-bucket tickers only. Values sum to 1.0.
     """
-    q5_tickers = quintile_assignments[quintile_assignments == 5].index
+    top_tickers = quintile_assignments[quintile_assignments == long_quintile].index
 
-    if len(q5_tickers) == 0:
+    if len(top_tickers) == 0:
         return pd.Series(dtype=float)
 
     if weighting == "equal":
-        w = 1.0 / len(q5_tickers)
-        return pd.Series(w, index=q5_tickers)
+        w = 1.0 / len(top_tickers)
+        return pd.Series(w, index=top_tickers)
 
     if weighting == "cap_weight":
         if market_caps is None:
             raise ValueError("market_caps must be provided for cap_weight")
-        caps = market_caps.reindex(q5_tickers).clip(lower=0)
+        caps = market_caps.reindex(top_tickers).clip(lower=0)
         total = caps.sum()  # NaN caps pass through clip; sum(skipna=True) treats them as 0
         if total == 0 or pd.isna(total):
             # All market caps missing or zero — fall back to equal weight so the
             # portfolio remains investable rather than producing zero allocations.
-            w = 1.0 / len(q5_tickers)
-            return pd.Series(w, index=q5_tickers)
+            w = 1.0 / len(top_tickers)
+            return pd.Series(w, index=top_tickers)
         return caps / total
 
     raise ValueError(f"Unknown weighting scheme: '{weighting}'. Use 'equal' or 'cap_weight'.")
@@ -84,32 +88,40 @@ def construct_long_short(
     quintile_assignments: pd.Series,
     market_caps: pd.Series = None,
     weighting: str = "equal",
+    long_quintile: int = 5,
+    short_quintile: int = 1,
 ) -> pd.Series:
     """
-    Build a long/short portfolio: long Q5 (+0.5 gross), short Q1 (-0.5 gross).
+    Build a long/short portfolio: long top bucket (+0.5 gross), short bottom (-0.5 gross).
 
     Weights sum to exactly 0.0 (dollar-neutral).
     Long side sums to +0.5; short side sums to -0.5.
-    Q2, Q3, Q4 receive zero weight (not included in output index).
+    Middle quintiles receive zero weight (not included in output index).
 
     Parameters
     ----------
     quintile_assignments : pd.Series
-        Quintile label (1–5) per ticker.
+        Quintile label (1–n_quantiles) per ticker.
     market_caps : pd.Series or None
         Market capitalisation per ticker. Required for cap_weight.
     weighting : str
         'equal'     — equal weight within each leg.
         'cap_weight' — weight proportional to market cap within each leg.
+    long_quintile : int
+        Quintile label for the long leg (top bucket).
+        Read from config['portfolio']['long_quintile']. Defaults to 5.
+    short_quintile : int
+        Quintile label for the short leg (bottom bucket).
+        Read from config['portfolio']['short_quintile']. Defaults to 1.
 
     Returns
     -------
     pd.Series
-        Portfolio weights. Index = Q5 ∪ Q1 tickers. Values sum to 0.0.
-        Positive weights = long (Q5), negative weights = short (Q1).
+        Portfolio weights. Index = long ∪ short tickers. Values sum to 0.0.
+        Positive weights = long, negative weights = short.
     """
-    q5_tickers = quintile_assignments[quintile_assignments == 5].index
-    q1_tickers = quintile_assignments[quintile_assignments == 1].index
+    top_tickers = quintile_assignments[quintile_assignments == long_quintile].index
+    bottom_tickers = quintile_assignments[quintile_assignments == short_quintile].index
 
     def _leg_weights(tickers, target_sum: float) -> pd.Series:
         """Compute normalised weights for one leg, scaled to target_sum."""
@@ -134,7 +146,7 @@ def construct_long_short(
 
         raise ValueError(f"Unknown weighting scheme: '{weighting}'.")
 
-    long_weights = _leg_weights(q5_tickers, +0.5)
-    short_weights = _leg_weights(q1_tickers, -0.5)
+    long_weights = _leg_weights(top_tickers, +0.5)
+    short_weights = _leg_weights(bottom_tickers, -0.5)
 
     return pd.concat([long_weights, short_weights])

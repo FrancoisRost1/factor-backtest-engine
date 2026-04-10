@@ -284,3 +284,80 @@ class TestComputeQuintileReturns:
         qr = compute_quintile_returns(q, returns)
         for quintile in range(1, 6):
             assert abs(qr[quintile] - 0.02) < 1e-10
+
+
+# ---------------------------------------------------------------------------
+# Configurable n_quantiles (decile sort: n_quantiles=10)
+# ---------------------------------------------------------------------------
+
+class TestConfigurableNQuantiles:
+    """
+    Verify that long_quintile / short_quintile parameters correctly target
+    the top/bottom buckets when n_quantiles != 5 (e.g., decile sorts).
+    Without this wiring, construct_long_only would return an empty portfolio
+    for n_quantiles=10 because no ticker is labelled '5' in a 10-bucket sort.
+    """
+
+    def test_decile_long_only_uses_top_bucket(self):
+        # 30 tickers split into 10 deciles → 3 tickers per decile
+        scores = _evenly_spaced_scores(30)
+        q = assign_quintiles(scores, n_quintiles=10)
+        # Top decile is bucket 10 — pass long_quintile=10
+        weights = construct_long_only(q, weighting="equal", long_quintile=10)
+        assert len(weights) == 3, "Top decile should hold 3 tickers"
+        assert abs(weights.sum() - 1.0) < 1e-12
+        # Tickers in top decile must be the 3 highest scores (T27, T28, T29)
+        assert set(weights.index) == {"T27", "T28", "T29"}
+
+    def test_decile_long_only_default_picks_wrong_bucket(self):
+        # Regression test for the bug Codex flagged: with default long_quintile=5
+        # the decile sort returns the MIDDLE decile (bucket 5 of 10), not the
+        # top decile. The portfolio is non-empty but factor-wrong — this is why
+        # the parameter must be wired through from config.
+        scores = _evenly_spaced_scores(30)
+        q = assign_quintiles(scores, n_quintiles=10)
+        weights_default = construct_long_only(q, weighting="equal")  # default=5
+        # Default targets the 5th decile (mid-rank), not the top decile.
+        assert set(weights_default.index) == {"T12", "T13", "T14"}
+        # Explicit long_quintile=10 targets the actual top decile.
+        weights_top = construct_long_only(q, weighting="equal", long_quintile=10)
+        assert set(weights_top.index) == {"T27", "T28", "T29"}
+        # The two are disjoint — proves the wiring matters.
+        assert set(weights_default.index).isdisjoint(set(weights_top.index))
+
+    def test_decile_long_short_targets_top_and_bottom(self):
+        scores = _evenly_spaced_scores(30)
+        q = assign_quintiles(scores, n_quintiles=10)
+        weights = construct_long_short(
+            q, weighting="equal", long_quintile=10, short_quintile=1
+        )
+        # 3 long + 3 short = 6 positions
+        assert len(weights) == 6
+        # Dollar-neutral
+        assert abs(weights.sum()) < 1e-12
+        # Long leg sums to +0.5
+        assert abs(weights[weights > 0].sum() - 0.5) < 1e-12
+        # Short leg sums to -0.5
+        assert abs(weights[weights < 0].sum() + 0.5) < 1e-12
+        # Long leg = top decile (T27..T29)
+        long_idx = set(weights[weights > 0].index)
+        assert long_idx == {"T27", "T28", "T29"}
+        # Short leg = bottom decile (T0..T2)
+        short_idx = set(weights[weights < 0].index)
+        assert short_idx == {"T0", "T1", "T2"}
+
+    def test_compute_quintile_returns_with_n_quantiles_10(self):
+        scores = _evenly_spaced_scores(30)
+        q = assign_quintiles(scores, n_quintiles=10)
+        rets = pd.Series(
+            [0.01 * i for i in range(30)],
+            index=[f"T{i}" for i in range(30)],
+            dtype=float,
+        )
+        qr = compute_quintile_returns(q, rets, n_quantiles=10)
+        # Output must have all 10 buckets
+        assert set(qr.index) == set(range(1, 11))
+        # Bottom decile mean = mean(0.00, 0.01, 0.02) = 0.01
+        assert abs(qr[1] - 0.01) < 1e-12
+        # Top decile mean = mean(0.27, 0.28, 0.29) = 0.28
+        assert abs(qr[10] - 0.28) < 1e-12

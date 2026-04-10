@@ -94,6 +94,8 @@ def run_all_backtests(
     weighting_schemes = config["portfolio"]["weighting_schemes"]
     cost_per_unit = config["transaction_costs"]["cost_per_trade"]
     n_quantiles = config["portfolio"]["n_quantiles"]
+    long_quintile = config["portfolio"].get("long_quintile", n_quantiles)
+    short_quintile = config["portfolio"].get("short_quintile", 1)
     lookback_days = (
         config.get("factors", {})
         .get("low_volatility", {})
@@ -133,6 +135,8 @@ def run_all_backtests(
                     rebalance_dates=rebalance_dates,
                     weighting=wt,
                     n_quantiles=n_quantiles,
+                    long_quintile=long_quintile,
+                    short_quintile=short_quintile,
                     cost_per_unit=cost_per_unit,
                     lookback_days=lookback_days,
                     min_valid_factors=min_valid_factors,
@@ -158,6 +162,8 @@ def _run_single_factor_backtest(
     n_quantiles: int,
     cost_per_unit: float,
     lookback_days: int,
+    long_quintile: int = 5,
+    short_quintile: int = 1,
     min_valid_factors: int = 3,
     annualization_factor: int = 252,
 ) -> Tuple[dict, dict]:
@@ -191,6 +197,10 @@ def _run_single_factor_backtest(
         Transaction cost per unit of turnover (e.g., 0.001 = 10 bps).
     lookback_days : int
         Lookback window for rolling volatility computation.
+    long_quintile : int
+        Quintile label for the long leg (typically n_quantiles, the top bucket).
+    short_quintile : int
+        Quintile label for the short leg (typically 1, the bottom bucket).
     min_valid_factors : int
         Minimum valid factor scores to compute a composite (from config).
     annualization_factor : int
@@ -242,10 +252,12 @@ def _run_single_factor_backtest(
 
         # ── Portfolio construction ─────────────────────────────────────────
         lo_weights = construct_long_only(
-            quintiles, market_caps=market_caps, weighting=weighting
+            quintiles, market_caps=market_caps, weighting=weighting,
+            long_quintile=long_quintile,
         )
         ls_weights = construct_long_short(
-            quintiles, market_caps=market_caps, weighting=weighting
+            quintiles, market_caps=market_caps, weighting=weighting,
+            long_quintile=long_quintile, short_quintile=short_quintile,
         )
 
         # ── Stock returns over the holding period ──────────────────────────
