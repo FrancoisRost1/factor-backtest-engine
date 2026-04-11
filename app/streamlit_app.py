@@ -6,7 +6,7 @@ optional time-series CSVs (outputs/ic_series_*.csv, outputs/quintile_*.csv).
 
 Layout (per CLAUDE.md standards, quant research order):
   TAB 1: OVERVIEW      — filters, best-combination panel, rankings table
-  TAB 2: FACTOR ANALYSIS  — Signal Quality → Portfolio Construction → Performance
+  TAB 2: FACTOR ANALYSIS  — Signal Quality to Portfolio Construction to Performance
   TAB 3: PORTFOLIO COMPARISON — long-only vs long/short side-by-side
   TAB 4: METHODOLOGY   — static research write-up
 
@@ -153,14 +153,14 @@ BASE_LAYOUT = dict(
 
 def pct(v, dec=1):
     if v is None or (isinstance(v, float) and np.isnan(v)):
-        return "—"
+        return ""
     return f"{v * 100:.{dec}f}%"
 
 def fmt_alpha(v):
     """Format annualised alpha, collapsing near-zero to '≈ 0.0%' to avoid '-0.0%'."""
     v = _safe(v)
     if np.isnan(v):
-        return "—"
+        return ""
     if abs(v) < 0.0005:
         return "≈ 0.0%"
     return f"{v * 100:.1f}%"
@@ -168,12 +168,12 @@ def fmt_alpha(v):
 def fmt3(v):
     """Format to 3 decimal places (used for Mean IC and IC IR in tables)."""
     if v is None or (isinstance(v, float) and np.isnan(v)):
-        return "—"
+        return ""
     return f"{v:.3f}"
 
 def fmt2(v):
     if v is None or (isinstance(v, float) and np.isnan(v)):
-        return "—"
+        return ""
     return f"{v:.2f}"
 
 def _safe(v):
@@ -238,7 +238,7 @@ def no_data_banner():
     <div style='background:{CARD_BG};border:1px solid {AMBER};border-radius:2px;
                 padding:20px 24px;margin:20px 0'>
         <div style='font-size:13px;font-weight:600;color:{AMBER};text-transform:uppercase;letter-spacing:0.8px'>
-            ⚠ No results found
+             No results found
         </div>
         <div style='margin-top:8px;color:#c9d1d9;font-size:12px'>
             Run the backtest pipeline first:<br><br>
@@ -266,27 +266,27 @@ def interpretation_box():
         <table style='width:100%;border-collapse:collapse;font-size:11px'>
           <tr>
             <td style='padding:3px 8px;color:{GREEN};font-weight:600;white-space:nowrap'>IC &gt; 0</td>
-            <td style='padding:3px 8px;color:#c9d1d9'>Predictive signal — factor rank correlates with forward returns</td>
+            <td style='padding:3px 8px;color:#c9d1d9'>Predictive signal: factor rank correlates with forward returns</td>
           </tr>
           <tr>
             <td style='padding:3px 8px;color:{TEXT_COLOR};font-weight:600;white-space:nowrap'>IC ≈ 0</td>
-            <td style='padding:3px 8px;color:#c9d1d9'>Weak or absent signal — factor has no predictive power</td>
+            <td style='padding:3px 8px;color:#c9d1d9'>Weak or absent signal: factor has no predictive power</td>
           </tr>
           <tr>
             <td style='padding:3px 8px;color:{RED};font-weight:600;white-space:nowrap'>IC &lt; 0</td>
-            <td style='padding:3px 8px;color:#c9d1d9'>Inverted or biased signal — ranking predicts opposite direction</td>
+            <td style='padding:3px 8px;color:#c9d1d9'>Inverted or biased signal: ranking predicts opposite direction</td>
           </tr>
           <tr>
             <td style='padding:3px 8px;color:{GREEN};font-weight:600;white-space:nowrap'>IC IR &gt; 0.5</td>
-            <td style='padding:3px 8px;color:#c9d1d9'>Consistent signal — mean(IC)/std(IC) often considered strong at this level (Grinold &amp; Kahn)</td>
+            <td style='padding:3px 8px;color:#c9d1d9'>Consistent signal: mean(IC)/std(IC) often considered strong at this level (Grinold &amp; Kahn)</td>
           </tr>
           <tr>
-            <td style='padding:3px 8px;color:{GREEN};font-weight:600;white-space:nowrap'>Monotonic Q1→Q5</td>
-            <td style='padding:3px 8px;color:#c9d1d9'>Strong factor — returns increase as predicted across all quintiles</td>
+            <td style='padding:3px 8px;color:{GREEN};font-weight:600;white-space:nowrap'>Monotonic Q1 to Q5</td>
+            <td style='padding:3px 8px;color:#c9d1d9'>Strong factor: returns increase as predicted across all quintiles</td>
           </tr>
           <tr>
             <td style='padding:3px 8px;color:{TEXT_COLOR};font-weight:600;white-space:nowrap'>Flat quintiles</td>
-            <td style='padding:3px 8px;color:#c9d1d9'>No factor signal — ranking explains nothing about returns</td>
+            <td style='padding:3px 8px;color:#c9d1d9'>No factor signal: ranking explains nothing about returns</td>
           </tr>
         </table>
     </div>""", unsafe_allow_html=True)
@@ -326,7 +326,7 @@ st.markdown("""
         FACTOR BACKTEST ENGINE
     </span>
     <span style='font-size:11px;color:#8b949e;margin-left:12px'>
-        S&P 500 · 5 Factors · 2016–2026 · 60 Combinations
+        S&P 500 · 5 Factors · 2016-2026 · 60 Combinations
     </span>
 </div>""", unsafe_allow_html=True)
 
@@ -334,13 +334,13 @@ st.markdown("""
 st.markdown(f"""
 <div style='background:#1c1200;border:1px solid {AMBER};border-radius:2px;
             padding:10px 16px;margin-bottom:12px;display:flex;align-items:flex-start;gap:10px'>
-    <span style='font-size:14px'>⚠</span>
+    <span style='font-size:14px'></span>
     <div>
         <span style='font-size:11px;font-weight:700;color:{AMBER};text-transform:uppercase;
-                     letter-spacing:0.6px'>Research Limitation — Results Not Investable</span>
+                     letter-spacing:0.6px'>Research Limitation: Results Not Investable</span>
         <span style='font-size:11px;color:#c9a227;margin-left:8px'>
             Fundamental factors (Value, Quality, Size) use <b>non-point-in-time data</b>
-            — yfinance current values applied retroactively across the entire backtest period.
+           : yfinance current values applied retroactively across the entire backtest period.
             Returns for these factors are likely overstated.
             Price-based factors (Momentum, Low Volatility) are clean.
         </span>
@@ -404,11 +404,11 @@ with tab1:
                         border:1px solid {BORDER};border-radius:2px;margin-bottom:2px'>
                 <span style='font-size:10px;font-weight:700;color:{AMBER};
                              text-transform:uppercase;letter-spacing:0.8px'>
-                    ▶ BEST PERFORMANCE (by Gross Sharpe) — not best signal quality
+                    ▶ BEST PERFORMANCE (by Gross Sharpe): not best signal quality
                 </span>
             </div>
             <div style='padding:4px 14px 8px 14px;font-size:10px;color:{TEXT_COLOR}'>
-                Selected by Sharpe ratio — may reflect risk exposure or data bias,
+                Selected by Sharpe ratio: may reflect risk exposure or data bias,
                 not genuine predictive power. Check IC and quintile spread to assess signal quality.
             </div>""", unsafe_allow_html=True)
 
@@ -444,7 +444,7 @@ with tab1:
                 f"</div>", unsafe_allow_html=True)
 
             # ── Summary table ──────────────────────────────────────────────────
-            section_header("ALL COMBINATIONS — SORTED BY SHARPE (GROSS)")
+            section_header("ALL COMBINATIONS: SORTED BY SHARPE (GROSS)")
 
             display_cols = {
                 "factor": "Factor", "frequency": "Freq", "weighting": "Weighting",
@@ -464,7 +464,7 @@ with tab1:
             for col in ["Return (G)", "Return (N)", "Max DD", "Turnover", "Hit Rate"]:
                 if col in df_show.columns:
                     df_show[col] = df_show[col].apply(
-                        lambda v: pct(_safe(v)) if not (isinstance(v, float) and np.isnan(v)) else "—"
+                        lambda v: pct(_safe(v)) if not (isinstance(v, float) and np.isnan(v)) else ""
                     )
             # Alpha: use fmt_alpha to suppress "-0.0%"
             if "Alpha" in df_show.columns:
@@ -475,13 +475,13 @@ with tab1:
             for col in ["Sharpe (G)", "Sharpe (N)", "Sortino", "Calmar", "Beta"]:
                 if col in df_show.columns:
                     df_show[col] = df_show[col].apply(
-                        lambda v: fmt2(_safe(v)) if not (isinstance(v, float) and np.isnan(v)) else "—"
+                        lambda v: fmt2(_safe(v)) if not (isinstance(v, float) and np.isnan(v)) else ""
                     )
             # Mean IC and IC IR: 3 decimals for precision
             for col in ["Mean IC", "IC IR"]:
                 if col in df_show.columns:
                     df_show[col] = df_show[col].apply(
-                        lambda v: fmt3(_safe(v)) if not (isinstance(v, float) and np.isnan(v)) else "—"
+                        lambda v: fmt3(_safe(v)) if not (isinstance(v, float) and np.isnan(v)) else ""
                     )
             st.dataframe(df_show, use_container_width=True,
                          height=min(600, 38 + 35 * len(df_show)), hide_index=True)
@@ -489,7 +489,7 @@ with tab1:
 
 # ══════════════════════════════════════════════════════════════════════════════
 # TAB 2 — FACTOR ANALYSIS
-# Structure: 1. Signal Quality → 2. Portfolio Construction → 3. Performance
+# Structure: 1. Signal Quality to 2. Portfolio Construction to 3. Performance
 # ══════════════════════════════════════════════════════════════════════════════
 
 with tab2:
@@ -534,7 +534,7 @@ with tab2:
             st.markdown(f"""
             <div style='background:#1c1200;border:1px solid {AMBER};border-radius:2px;
                         padding:8px 14px;margin:4px 0 8px 0;font-size:11px;color:#c9a227'>
-                ⚠ <b style='color:{AMBER}'>{FACTOR_LABELS.get(sel_fa, sel_fa)}</b>
+                 <b style='color:{AMBER}'>{FACTOR_LABELS.get(sel_fa, sel_fa)}</b>
                 uses non-point-in-time fundamental data. Signal metrics and performance
                 figures are likely upward-biased.
             </div>""", unsafe_allow_html=True)
@@ -574,10 +574,10 @@ with tab2:
                                  color=color_val(pct_pos, 0.5),
                                  note=f"n = {len(_vals)} periods")
                     else:
-                        kpi_card("% Periods IC > 0", "N/A — insufficient data",
+                        kpi_card("% Periods IC > 0", "N/A: insufficient data",
                                  color=TEXT_COLOR)
                 else:
-                    kpi_card("% Periods IC > 0", "N/A — series unavailable",
+                    kpi_card("% Periods IC > 0", "N/A: series unavailable",
                              color=TEXT_COLOR,
                              note="save_timeseries=True required")
 
@@ -604,7 +604,7 @@ with tab2:
                             line=dict(color=AMBER, width=2), name="6-period MA",
                         ))
                     fig_ic.add_hline(y=0, line_color=BORDER, line_width=1.5)
-                    apply_layout(fig_ic, f"{FACTOR_LABELS.get(sel_fa, sel_fa)} — IC per Period")
+                    apply_layout(fig_ic, f"{FACTOR_LABELS.get(sel_fa, sel_fa)}: IC per Period")
                     st.plotly_chart(fig_ic, use_container_width=True)
             else:
                 missing_series_note("IC time-series")
@@ -631,7 +631,7 @@ with tab2:
                 ))
                 fig_qbar.add_hline(y=0, line_color=BORDER, line_width=1)
                 apply_layout(fig_qbar,
-                    f"Mean Period Return by Quintile — {sel_fa_freq.capitalize()}")
+                    f"Mean Period Return by Quintile: {sel_fa_freq.capitalize()}")
                 fig_qbar.update_layout(yaxis_ticksuffix="%")
                 st.plotly_chart(fig_qbar, use_container_width=True)
 
@@ -649,7 +649,7 @@ with tab2:
                         mode="lines",
                     ))
                 apply_layout(fig_qcum,
-                    f"Cumulative Return by Quintile — {sel_fa_freq.capitalize()}")
+                    f"Cumulative Return by Quintile: {sel_fa_freq.capitalize()}")
                 if log_scale:
                     fig_qcum.update_layout(yaxis_type="log")
                 st.plotly_chart(fig_qcum, use_container_width=True)
@@ -695,7 +695,7 @@ with tab2:
         pc_c1, pc_c2 = st.columns([3, 2])
 
         with pc_c1:
-            section_header("SHARPE RATIO — EQUAL vs CAP-WEIGHT BY FREQUENCY")
+            section_header("SHARPE RATIO: EQUAL vs CAP-WEIGHT BY FREQUENCY")
             freqs = ["monthly", "quarterly", "annual"]
             wts   = ["equal", "cap_weight"]
             wt_colors = {"equal": ACCENT, "cap_weight": PURPLE}
@@ -742,7 +742,7 @@ with tab2:
                         kpi_card(f.capitalize(), pct(to_v), color="#f0f6fc")
 
         # Equal-weight vs cap-weight detail table
-        section_header("EQUAL vs CAP-WEIGHT — FULL COMPARISON TABLE")
+        section_header("EQUAL vs CAP-WEIGHT: FULL COMPARISON TABLE")
         comp_cols = ["frequency", "weighting", "return_gross", "return_net",
                      "sharpe_gross", "sharpe_net", "max_dd", "calmar",
                      "hit_rate", "avg_turnover", "mean_ic", "ic_ir"]
@@ -934,7 +934,7 @@ with tab3:
 
         # Gross vs net cost of trading
         block_header("3", "Cost of Trading",
-                     "Gross vs net return — cost increases with rebalancing frequency")
+                     "Gross vs net return: cost increases with rebalancing frequency")
         df_all_f = df_all[(df_all["factor"] == sel_pc_f) & (df_all["weighting"] == sel_pc_wt)]
         fig_gn = go.Figure()
         for pt_val, pt_color, pt_label in [("long_only", ACCENT, "Long-Only"),
@@ -1022,37 +1022,37 @@ with tab4:
         <tr style='border-bottom:1px solid {GRID_COLOR}'>
           <td style='padding:6px 10px;color:#f0f6fc;font-weight:600'>Value</td>
           <td style='padding:6px 10px;color:#c9d1d9'>Earnings Yield (1 / PE)</td>
-          <td style='padding:6px 10px;color:{GREEN}'>Higher → Cheaper</td>
+          <td style='padding:6px 10px;color:{GREEN}'>Higher to Cheaper</td>
           <td style='padding:6px 10px;color:{TEXT_COLOR}'>yfinance trailingPE</td>
-          <td style='padding:6px 10px;color:{RED}'>✗ (current only)</td>
+          <td style='padding:6px 10px;color:{RED}'>No (current only)</td>
         </tr>
         <tr style='border-bottom:1px solid {GRID_COLOR}'>
           <td style='padding:6px 10px;color:#f0f6fc;font-weight:600'>Momentum</td>
           <td style='padding:6px 10px;color:#c9d1d9'>12-month return, skip last 1m (12-1)</td>
-          <td style='padding:6px 10px;color:{GREEN}'>Higher → Stronger trend</td>
+          <td style='padding:6px 10px;color:{GREEN}'>Higher to Stronger trend</td>
           <td style='padding:6px 10px;color:{TEXT_COLOR}'>Daily close prices</td>
-          <td style='padding:6px 10px;color:{GREEN}'>✓</td>
+          <td style='padding:6px 10px;color:{GREEN}'>Yes</td>
         </tr>
         <tr style='border-bottom:1px solid {GRID_COLOR}'>
           <td style='padding:6px 10px;color:#f0f6fc;font-weight:600'>Quality</td>
           <td style='padding:6px 10px;color:#c9d1d9'>Return on Equity (ROE)</td>
-          <td style='padding:6px 10px;color:{GREEN}'>Higher → More profitable</td>
+          <td style='padding:6px 10px;color:{GREEN}'>Higher to More profitable</td>
           <td style='padding:6px 10px;color:{TEXT_COLOR}'>yfinance returnOnEquity</td>
-          <td style='padding:6px 10px;color:{RED}'>✗ (current only)</td>
+          <td style='padding:6px 10px;color:{RED}'>No (current only)</td>
         </tr>
         <tr style='border-bottom:1px solid {GRID_COLOR}'>
           <td style='padding:6px 10px;color:#f0f6fc;font-weight:600'>Size</td>
-          <td style='padding:6px 10px;color:#c9d1d9'>log(Market Cap) — inverted</td>
-          <td style='padding:6px 10px;color:{RED}'>Lower → Small cap premium</td>
+          <td style='padding:6px 10px;color:#c9d1d9'>log(Market Cap): inverted</td>
+          <td style='padding:6px 10px;color:{RED}'>Lower to Small cap premium</td>
           <td style='padding:6px 10px;color:{TEXT_COLOR}'>yfinance marketCap</td>
-          <td style='padding:6px 10px;color:{RED}'>✗ (current only)</td>
+          <td style='padding:6px 10px;color:{RED}'>No (current only)</td>
         </tr>
         <tr>
           <td style='padding:6px 10px;color:#f0f6fc;font-weight:600'>Low Vol.</td>
-          <td style='padding:6px 10px;color:#c9d1d9'>60-day rolling σ (annualised) — inverted</td>
-          <td style='padding:6px 10px;color:{RED}'>Lower → Better risk-adj.</td>
+          <td style='padding:6px 10px;color:#c9d1d9'>60-day rolling σ (annualised): inverted</td>
+          <td style='padding:6px 10px;color:{RED}'>Lower to Better risk-adj.</td>
           <td style='padding:6px 10px;color:{TEXT_COLOR}'>Daily close prices</td>
-          <td style='padding:6px 10px;color:{GREEN}'>✓</td>
+          <td style='padding:6px 10px;color:{GREEN}'>Yes</td>
         </tr>
       </tbody>
     </table>
@@ -1060,16 +1060,16 @@ with tab4:
 
     m_c1, m_c2 = st.columns(2)
     with m_c1:
-        section_header("SIGNAL TIMING — NO LOOKAHEAD")
+        section_header("SIGNAL TIMING: NO LOOKAHEAD")
         st.markdown(f"""
         <div style='background:{CARD_BG};border:1px solid {BORDER};border-radius:2px;
                     padding:14px 16px;font-size:12px;line-height:1.9;color:#c9d1d9'>
         At time <i>t</i>, factor scores use <b style='color:#f0f6fc'>only data available at t</b>.
-        Portfolio is constructed at <i>t</i>. Returns measured <i>t → t+1</i>.<br><br>
+        Portfolio is constructed at <i>t</i>. Returns measured <i>t to t+1</i>.<br><br>
         <b style='color:#f0f6fc'>Normalisation:</b> Cross-sectional percentile rank [0,1]
         at every rebalance. Size and Low-Vol ranked inversely (lower raw = higher rank).<br><br>
         <b style='color:#f0f6fc'>Quintile sort:</b> Q5 = top-ranked. Q1 = lowest-ranked.<br><br>
-        <b style='color:#f0f6fc'>Long-Only:</b> equal or cap-weighted Q5. Weights → 1.0<br>
+        <b style='color:#f0f6fc'>Long-Only:</b> equal or cap-weighted Q5. Weights to 1.0<br>
         <b style='color:#f0f6fc'>Long/Short:</b> +0.5 Q5, −0.5 Q1. Net zero exposure.
         </div>""", unsafe_allow_html=True)
 
@@ -1088,15 +1088,15 @@ with tab4:
         st.markdown(f"""
         <div style='background:{CARD_BG};border:1px solid {BORDER};border-radius:2px;
                     padding:14px 16px;font-size:12px;line-height:1.9;color:#c9d1d9'>
-        <b style='color:#f0f6fc'>CAGR</b> — geometric compound annual growth<br>
-        <b style='color:#f0f6fc'>Sharpe</b> — mean excess return / σ × √periods/yr<br>
-        <b style='color:#f0f6fc'>Sortino</b> — Sharpe using only downside σ<br>
-        <b style='color:#f0f6fc'>Max DD</b> — worst peak-to-trough (with 1.0 baseline)<br>
-        <b style='color:#f0f6fc'>Calmar</b> — Ann. Return / |Max DD|<br>
-        <b style='color:#f0f6fc'>Hit Rate</b> — % periods outperforming SPY (strict &gt;)<br>
-        <b style='color:#f0f6fc'>IC</b> — Spearman(factor_scores_t, returns_t→t+1)<br>
-        <b style='color:#f0f6fc'>IC IR</b> — Mean IC / Std(IC) — signal consistency<br>
-        <b style='color:#f0f6fc'>Alpha / Beta</b> — OLS regression vs SPY (daily returns)
+        <b style='color:#f0f6fc'>CAGR</b>: geometric compound annual growth<br>
+        <b style='color:#f0f6fc'>Sharpe</b>: mean excess return / σ × √periods/yr<br>
+        <b style='color:#f0f6fc'>Sortino</b>: Sharpe using only downside σ<br>
+        <b style='color:#f0f6fc'>Max DD</b>: worst peak-to-trough (with 1.0 baseline)<br>
+        <b style='color:#f0f6fc'>Calmar</b>: Ann. Return / |Max DD|<br>
+        <b style='color:#f0f6fc'>Hit Rate</b>: % periods outperforming SPY (strict &gt;)<br>
+        <b style='color:#f0f6fc'>IC</b>: Spearman(factor_scores_t, returns_t to t+1)<br>
+        <b style='color:#f0f6fc'>IC IR</b>: Mean IC / Std(IC): signal consistency<br>
+        <b style='color:#f0f6fc'>Alpha / Beta</b>: OLS regression vs SPY (daily returns)
         </div>""", unsafe_allow_html=True)
 
         section_header("KNOWN LIMITATIONS")
@@ -1104,16 +1104,16 @@ with tab4:
         <div style='background:#1c1200;border:1px solid {AMBER};border-radius:2px;
                     padding:14px 16px;font-size:12px;line-height:1.9;color:#c9a227'>
         <b style='color:{AMBER}'>Survivorship Bias.</b>
-        <span style='color:#c9d1d9'> Universe = today's S&P 500. Firms that failed 2014–2026 excluded.</span><br>
+        <span style='color:#c9d1d9'> Universe = today's S&P 500. Firms that failed 2014-2026 excluded.</span><br>
         <b style='color:{AMBER}'>Non-PIT Fundamentals.</b>
-        <span style='color:#c9d1d9'> PE, ROE, and market cap are current values applied historically — not quarterly filings.</span><br>
+        <span style='color:#c9d1d9'> PE, ROE, and market cap are current values applied historically: not quarterly filings.</span><br>
         <b style='color:{AMBER}'>Cap-Weight Not PIT-Clean.</b>
         <span style='color:#c9d1d9'> Cap-weighted portfolios use current market cap for historical weighting.
         Historical market cap at each rebalance date would be required for a clean backtest.</span><br>
         <b style='color:{AMBER}'>No Shorting Costs.</b>
         <span style='color:#c9d1d9'> L/S portfolios omit borrow costs and margin.</span><br>
         <b style='color:{AMBER}'>Risk-Free Rate = 0%.</b>
-        <span style='color:#c9d1d9'> Conservative assumption — raises Sharpe vs actual T-bill hurdle.</span><br>
+        <span style='color:#c9d1d9'> Conservative assumption: raises Sharpe vs actual T-bill hurdle.</span><br>
         <b style='color:{AMBER}'>No Market Impact.</b>
         <span style='color:#c9d1d9'> S&P 500 stocks assumed fully liquid at close prices.</span>
         </div>""", unsafe_allow_html=True)

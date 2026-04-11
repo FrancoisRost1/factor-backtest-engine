@@ -2,7 +2,7 @@
 
 *Built by a CFA student to demonstrate institutional-grade factor research.*
 
-A systematic multi-factor equity model covering the S&P 500 universe (~500 stocks). It computes five academic factors at each rebalance date, normalizes them to cross-sectional percentile ranks, constructs long-only and long-short quintile portfolios, and runs a rigorous backtest from 2016 to 2026 with full institutional analytics. Built to demonstrate that factor investing is an engineering problem as much as a finance one — signal construction, lookahead prevention, cost modeling, and statistical evaluation all have to be right.
+A systematic multi-factor equity model covering the S&P 500 universe (~500 stocks). It computes five academic factors at each rebalance date, normalizes them to cross-sectional percentile ranks, constructs long-only and long-short quintile portfolios, and runs a rigorous backtest from 2016 to 2026 with full institutional analytics. Built to demonstrate that factor investing is an engineering problem as much as a finance one, signal construction, lookahead prevention, cost modeling, and statistical evaluation all have to be right.
 
 ![Dashboard](Screenshot.png)
 
@@ -10,10 +10,10 @@ A systematic multi-factor equity model covering the S&P 500 universe (~500 stock
 
 ## What This Demonstrates
 
-- **Factor investing mechanics**: correct implementation of the Fama-French size premium, momentum (12-1 with reversal skip), the low-volatility anomaly, and earnings yield — each with documented financial rationale, not just code.
+- **Factor investing mechanics**: correct implementation of the Fama-French size premium, momentum (12-1 with reversal skip), the low-volatility anomaly, and earnings yield, each with documented financial rationale, not just code.
 - **Backtest discipline**: strict signal-timing enforcement (scores computed at `t`, returns measured from `t` to `t+1`), warmup periods isolated from the evaluation window, and known biases disclosed rather than hidden.
 - **Production-grade engineering**: one file per responsibility, all parameters in `config.yaml`, edge cases handled (NaN propagation, zero market cap, missing returns), 166 tests passing.
-- **Institutional analytics**: Sharpe, Sortino, Calmar, max drawdown, hit rate, Information Coefficient (Spearman), and Jensen's alpha via OLS regression — the metrics an actual PM or risk team would ask for.
+- **Institutional analytics**: Sharpe, Sortino, Calmar, max drawdown, hit rate, Information Coefficient (Spearman), and Jensen's alpha via OLS regression, the metrics an actual PM or risk team would ask for.
 
 ---
 
@@ -65,9 +65,9 @@ One metric per factor. No multi-metric blends or composite sub-factors at the de
 
 ## How It Works
 
-**Universe and data.** The backtest runs on current S&P 500 constituents (~500 tickers). Daily adjusted close prices are downloaded via yfinance from 2014 to 2026 and cached locally. Fundamental data (trailing P/E, ROE, market cap) is fetched once per ticker. The 2014–2016 period serves as a warmup window only — rebalancing begins in January 2016 to ensure all lookback windows (12-month momentum, 60-day volatility) are fully populated before the first trade.
+**Universe and data.** The backtest runs on current S&P 500 constituents (~500 tickers). Daily adjusted close prices are downloaded via yfinance from 2014 to 2026 and cached locally. Fundamental data (trailing P/E, ROE, market cap) is fetched once per ticker. The 2014-2016 period serves as a warmup window only, rebalancing begins in January 2016 to ensure all lookback windows (12-month momentum, 60-day volatility) are fully populated before the first trade.
 
-**Factor computation and normalization.** At each rebalance date, all five factors are computed using only data available up to that date — no future prices are accessed. Earnings yield and ROE come from the fundamentals snapshot; momentum is `price(t−1m) / price(t−12m) − 1` with the most recent month skipped to avoid short-term reversal; rolling volatility is the annualized standard deviation of the last 60 trading days of returns. Every factor is then percentile-ranked cross-sectionally so that all five signals live on a common `[0, 1]` scale. A sixth composite signal averages the five ranked scores for each stock, requiring at least three valid factor values to produce a composite.
+**Factor computation and normalization.** At each rebalance date, all five factors are computed using only data available up to that date, no future prices are accessed. Earnings yield and ROE come from the fundamentals snapshot; momentum is `price(t−1m) / price(t−12m) − 1` with the most recent month skipped to avoid short-term reversal; rolling volatility is the annualized standard deviation of the last 60 trading days of returns. Every factor is then percentile-ranked cross-sectionally so that all five signals live on a common `[0, 1]` scale. A sixth composite signal averages the five ranked scores for each stock, requiring at least three valid factor values to produce a composite.
 
 **Portfolio construction.** At each rebalance the ranked universe is sorted into five equal quintiles. Q5 holds the highest-scoring stocks; Q1 holds the lowest. Two portfolio types are constructed: a long-only portfolio fully invested in Q5, and a long-short portfolio that goes long Q5 at +0.5 gross weight and short Q1 at −0.5 gross weight (dollar-neutral). Both are available in equal-weight and cap-weight variants.
 
@@ -138,7 +138,7 @@ factor-backtest-engine/
 
 **No sector neutralization.** Factor scores are ranked across the full cross-section without controlling for sector composition. A value-heavy portfolio will systematically overweight certain sectors (e.g., energy, financials) relative to a sector-neutral construction.
 
-**No shorting costs.** The long-short portfolio assumes zero cost of borrow. In practice, small-cap and high-volatility short positions — exactly the stocks that populate Q1 — carry meaningful financing costs that are not modeled here.
+**No shorting costs.** The long-short portfolio assumes zero cost of borrow. In practice, small-cap and high-volatility short positions, exactly the stocks that populate Q1, carry meaningful financing costs that are not modeled here.
 
 ---
 
@@ -159,4 +159,4 @@ factor-backtest-engine/
 
 ## Author
 
-François Rostaing — [GitHub](https://github.com/FrancoisRost1)
+François Rostaing, [GitHub](https://github.com/FrancoisRost1)
