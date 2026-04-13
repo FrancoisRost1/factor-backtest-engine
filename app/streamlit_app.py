@@ -832,61 +832,46 @@ with tab4:
     danger = TOKENS["accent_danger"]
     bg = TOKENS["bg_surface"]
 
-    st.markdown(f"""
-    <div style='background:{bg};border:1px solid {border};border-radius:3px;
-                padding:16px 20px;font-size:0.75rem'>
-    <table style='width:100%;border-collapse:collapse'>
-      <thead><tr style='border-bottom:1px solid {border}'>
-        <th style='color:{accent};text-align:left;padding:6px 10px;font-size:0.65rem;
-                   text-transform:uppercase;letter-spacing:0.1em'>Factor</th>
-        <th style='color:{accent};text-align:left;padding:6px 10px;font-size:0.65rem;
-                   text-transform:uppercase;letter-spacing:0.1em'>Metric</th>
-        <th style='color:{accent};text-align:left;padding:6px 10px;font-size:0.65rem;
-                   text-transform:uppercase;letter-spacing:0.1em'>Direction</th>
-        <th style='color:{accent};text-align:left;padding:6px 10px;font-size:0.65rem;
-                   text-transform:uppercase;letter-spacing:0.1em'>Source</th>
-        <th style='color:{warn};text-align:left;padding:6px 10px;font-size:0.65rem;
-                   text-transform:uppercase;letter-spacing:0.1em'>PIT Clean?</th>
-      </tr></thead>
-      <tbody>
-        <tr style='border-bottom:1px solid {border}'>
-          <td style='padding:6px 10px;color:{text_pri};font-weight:600'>Value</td>
-          <td style='padding:6px 10px;color:{text_sec}'>Earnings Yield (1 / PE)</td>
-          <td style='padding:6px 10px;color:{success}'>Higher is cheaper</td>
-          <td style='padding:6px 10px;color:{text_mut}'>yfinance trailingPE</td>
-          <td style='padding:6px 10px;color:{danger}'>No (current only)</td>
-        </tr>
-        <tr style='border-bottom:1px solid {border}'>
-          <td style='padding:6px 10px;color:{text_pri};font-weight:600'>Momentum</td>
-          <td style='padding:6px 10px;color:{text_sec}'>12-month return, skip last 1m (12-1)</td>
-          <td style='padding:6px 10px;color:{success}'>Higher is stronger trend</td>
-          <td style='padding:6px 10px;color:{text_mut}'>Daily close prices</td>
-          <td style='padding:6px 10px;color:{success}'>Yes</td>
-        </tr>
-        <tr style='border-bottom:1px solid {border}'>
-          <td style='padding:6px 10px;color:{text_pri};font-weight:600'>Quality</td>
-          <td style='padding:6px 10px;color:{text_sec}'>Return on Equity (ROE)</td>
-          <td style='padding:6px 10px;color:{success}'>Higher is more profitable</td>
-          <td style='padding:6px 10px;color:{text_mut}'>yfinance returnOnEquity</td>
-          <td style='padding:6px 10px;color:{danger}'>No (current only)</td>
-        </tr>
-        <tr style='border-bottom:1px solid {border}'>
-          <td style='padding:6px 10px;color:{text_pri};font-weight:600'>Size</td>
-          <td style='padding:6px 10px;color:{text_sec}'>log(Market Cap), inverted</td>
-          <td style='padding:6px 10px;color:{danger}'>Lower is small cap premium</td>
-          <td style='padding:6px 10px;color:{text_mut}'>yfinance marketCap</td>
-          <td style='padding:6px 10px;color:{danger}'>No (current only)</td>
-        </tr>
-        <tr>
-          <td style='padding:6px 10px;color:{text_pri};font-weight:600'>Low Vol.</td>
-          <td style='padding:6px 10px;color:{text_sec}'>60-day rolling sigma (annualised), inverted</td>
-          <td style='padding:6px 10px;color:{danger}'>Lower is better risk-adj.</td>
-          <td style='padding:6px 10px;color:{text_mut}'>Daily close prices</td>
-          <td style='padding:6px 10px;color:{success}'>Yes</td>
-        </tr>
-      </tbody>
-    </table>
-    </div>""", unsafe_allow_html=True)
+    th = (
+        f"<th style='color:{accent};text-align:left;padding:6px 10px;"
+        f"font-size:0.65rem;text-transform:uppercase;letter-spacing:0.1em'>"
+    )
+    pit_th = th.replace(accent, warn)
+    rows_data = [
+        ("Value", "Earnings Yield (1 / PE)", "Higher is cheaper",
+         "yfinance trailingPE", "No (current only)", success, danger),
+        ("Momentum", "12-month return, skip last 1m (12-1)", "Higher is stronger trend",
+         "Daily close prices", "Yes", success, success),
+        ("Quality", "Return on Equity (ROE)", "Higher is more profitable",
+         "yfinance returnOnEquity", "No (current only)", success, danger),
+        ("Size", "log(Market Cap), inverted", "Lower is small cap premium",
+         "yfinance marketCap", "No (current only)", danger, danger),
+        ("Low Vol.", "60-day rolling sigma (annualised), inverted", "Lower is better risk-adj.",
+         "Daily close prices", "Yes", danger, success),
+    ]
+    td_p = f"style='padding:6px 10px;color:{text_pri};font-weight:600'"
+    td_s = f"style='padding:6px 10px;color:{text_sec}'"
+    td_m = f"style='padding:6px 10px;color:{text_mut}'"
+    body_rows = "".join(
+        (f"<tr style='border-bottom:1px solid {border}'>" if i < 4 else "<tr>")
+        + f"<td {td_p}>{r[0]}</td>"
+        + f"<td {td_s}>{r[1]}</td>"
+        + f"<td style='padding:6px 10px;color:{r[5]}'>{r[2]}</td>"
+        + f"<td {td_m}>{r[3]}</td>"
+        + f"<td style='padding:6px 10px;color:{r[6]}'>{r[4]}</td>"
+        + "</tr>"
+        for i, r in enumerate(rows_data)
+    )
+    html = (
+        f"<div style='background:{bg};border:1px solid {border};"
+        f"border-radius:3px;padding:16px 20px;font-size:0.75rem'>"
+        f"<table style='width:100%;border-collapse:collapse'>"
+        f"<thead><tr style='border-bottom:1px solid {border}'>"
+        f"{th}Factor</th>{th}Metric</th>{th}Direction</th>{th}Source</th>"
+        f"{pit_th}PIT Clean?</th>"
+        f"</tr></thead><tbody>{body_rows}</tbody></table></div>"
+    )
+    st.markdown(html, unsafe_allow_html=True)
 
     m_c1, m_c2 = st.columns(2)
     with m_c1:
