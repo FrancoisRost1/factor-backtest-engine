@@ -287,4 +287,11 @@ github.com/FrancoisRost1/factor-backtest-engine
 
 ---
 
-*Last updated: 2026-04-10*
+### Streamlit Cloud pass (2026-04-13)
+
+- Migrated `use_container_width` → `width="stretch"/"content"` in `app/streamlit_app.py` ahead of the Streamlit deprecation-to-error window.
+- Fixed a stray developer hint in the `% Periods IC > 0` fallback KPI at `app/streamlit_app.py:410`: was passing `delta="save_timeseries=True"` (a config key) as the delta value, which rendered as visible garbage. Dropped the delta entirely so the fallback just shows `n/a`.
+
+---
+
+*Last updated: 2026-04-13*
