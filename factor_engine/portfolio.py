@@ -8,7 +8,7 @@ for long-short.
 
 Long-Only (Q5):
   Invests only in the top quintile. The simplest implementation of a factor
-  strategy — suitable for mutual funds and other constrained mandates.
+  strategy, suitable for mutual funds and other constrained mandates.
 
 Long-Short (Q5 long, Q1 short):
   The canonical academic factor portfolio. Long-short isolates the pure factor
@@ -20,7 +20,7 @@ Long-Short (Q5 long, Q1 short):
 The market_caps passed here come from fetch_fundamentals(), which returns
 today's market cap for every ticker.  At each historical rebalance date the
 same current-day caps are used to weight positions.  This introduces look-ahead
-bias into ALL cap-weighted portfolios — even momentum and low-volatility, which
+bias into ALL cap-weighted portfolios, even momentum and low-volatility, which
 otherwise derive entirely from historical prices.  The equal-weight variants
 are unaffected.  Cap-weighted results should be interpreted with the same
 caution as the fundamental-factor results (value, quality, size).
@@ -49,8 +49,8 @@ def construct_long_only(
     market_caps : pd.Series or None
         Market capitalisation per ticker. Required for cap_weight.
     weighting : str
-        'equal'     — equal weight across all top-bucket stocks.
-        'cap_weight' — weight proportional to market cap within the bucket.
+        'equal'    , equal weight across all top-bucket stocks.
+        'cap_weight', weight proportional to market cap within the bucket.
     long_quintile : int
         Quintile label representing the top bucket (highest factor score).
         Read from config['portfolio']['long_quintile']. Defaults to 5.
@@ -75,7 +75,7 @@ def construct_long_only(
         caps = market_caps.reindex(top_tickers).clip(lower=0)
         total = caps.sum()  # NaN caps pass through clip; sum(skipna=True) treats them as 0
         if total == 0 or pd.isna(total):
-            # All market caps missing or zero — fall back to equal weight so the
+            # All market caps missing or zero, fall back to equal weight so the
             # portfolio remains investable rather than producing zero allocations.
             w = 1.0 / len(top_tickers)
             return pd.Series(w, index=top_tickers)
@@ -105,8 +105,8 @@ def construct_long_short(
     market_caps : pd.Series or None
         Market capitalisation per ticker. Required for cap_weight.
     weighting : str
-        'equal'     — equal weight within each leg.
-        'cap_weight' — weight proportional to market cap within each leg.
+        'equal'    , equal weight within each leg.
+        'cap_weight', weight proportional to market cap within each leg.
     long_quintile : int
         Quintile label for the long leg (top bucket).
         Read from config['portfolio']['long_quintile']. Defaults to 5.
@@ -138,7 +138,7 @@ def construct_long_short(
             caps = market_caps.reindex(tickers).clip(lower=0)
             total = caps.sum()  # NaN caps pass through clip; sum(skipna=True) treats them as 0
             if total == 0 or pd.isna(total):
-                # All market caps missing or zero — fall back to equal weight so the
+                # All market caps missing or zero, fall back to equal weight so the
                 # portfolio leg remains investable rather than producing zero allocations.
                 w = target_sum / len(tickers)
                 return pd.Series(w, index=tickers)

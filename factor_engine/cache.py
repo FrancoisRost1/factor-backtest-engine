@@ -57,7 +57,7 @@ def load_cache(key: str) -> Optional[Any]:
         with open(path, "rb") as fh:
             return pickle.load(fh)
     except Exception:
-        # Corrupt or incompatible pickle — treat as cache miss
+        # Corrupt or incompatible pickle, treat as cache miss
         return None
 
 
@@ -89,7 +89,7 @@ def clear_cache() -> None:
     """
     Delete all .pkl files in the cache directory.
 
-    Call this when fresh data is required — e.g., after the backtest
+    Call this when fresh data is required, e.g., after the backtest
     end_date has advanced and new price history is available on Yahoo Finance.
     """
     if not CACHE_DIR.exists():

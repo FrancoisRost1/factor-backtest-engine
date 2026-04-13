@@ -15,11 +15,11 @@ Result structure:
   {factor: {frequency: {weighting: {portfolio_type: backtest_result}}}}
 
 Where backtest_result is a dict with keys:
-  returns_gross  — pd.Series of gross period returns, indexed by period end date
-  returns_net    — pd.Series of net-of-cost period returns
-  benchmark_returns — pd.Series of SPY period returns for the same dates
-  turnover       — pd.Series of portfolio turnover per period
-  ic_series      — pd.Series of IC values per period (NaN if too few stocks)
+  returns_gross , pd.Series of gross period returns, indexed by period end date
+  returns_net   , pd.Series of net-of-cost period returns
+  benchmark_returns, pd.Series of SPY period returns for the same dates
+  turnover      , pd.Series of portfolio turnover per period
+  ic_series     , pd.Series of IC values per period (NaN if too few stocks)
 
 Simplifying assumptions (all documented in the project CLAUDE.md):
   - Survivorship bias: universe is today's S&P 500
@@ -175,7 +175,7 @@ def _run_single_factor_backtest(
     turnover, ic_series.
 
     Both portfolio types share the same factor scores, quintile assignments,
-    and IC values — only the weight construction differs.
+    and IC values, only the weight construction differs.
 
     Parameters
     ----------

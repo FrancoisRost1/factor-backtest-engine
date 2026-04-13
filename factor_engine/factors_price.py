@@ -58,7 +58,7 @@ def compute_momentum_12_1(prices_df: pd.DataFrame, as_of_date) -> pd.Series:
 
     momentum = price_1m / price_12m - 1.0
 
-    # Zero or negative prices indicate bad data — set to NaN
+    # Zero or negative prices indicate bad data, set to NaN
     bad_12m = price_12m <= 0
     bad_1m = price_1m <= 0
     momentum[bad_12m | bad_1m] = np.nan

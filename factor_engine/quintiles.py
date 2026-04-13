@@ -26,9 +26,9 @@ def assign_quintiles(
     divided into n_quintiles equal buckets.  Ties are broken by order of
     appearance in the Series (rank method='first'), so two tickers with
     identical scores are assigned consecutive unique ranks.  This makes quintile
-    boundaries fully deterministic — no ticker ever straddles two buckets.
+    boundaries fully deterministic, no ticker ever straddles two buckets.
 
-    Returns all NaN if fewer than n_quintiles tickers have valid scores — the
+    Returns all NaN if fewer than n_quintiles tickers have valid scores, the
     quintile spread is meaningless with only a handful of stocks.
 
     Parameters

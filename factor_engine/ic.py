@@ -65,7 +65,7 @@ def ic_summary(ic_series: pd.Series) -> dict:
     Summarise a time-series of Information Coefficient values.
 
     Computes the mean IC and the IC Information Ratio (ICIR).  The ICIR is
-    mean(IC) / std(IC) — a signal-to-noise ratio measuring how consistently
+    mean(IC) / std(IC), a signal-to-noise ratio measuring how consistently
     the factor predicts returns over time.  It is NOT a t-statistic; a
     t-statistic would divide by std(IC) / sqrt(n).  ICIR and the t-statistic
     differ by a factor of sqrt(n).
@@ -83,8 +83,8 @@ def ic_summary(ic_series: pd.Series) -> dict:
     -------
     dict
         Keys:
-          mean_ic — mean of the non-NaN IC values.
-          ic_ir   — mean_ic / std(ic).  NaN if fewer than 2 valid observations
+          mean_ic, mean of the non-NaN IC values.
+          ic_ir  , mean_ic / std(ic).  NaN if fewer than 2 valid observations
                     or if std is zero.
     """
     clean = ic_series.dropna()

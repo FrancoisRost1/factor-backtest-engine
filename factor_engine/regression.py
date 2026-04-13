@@ -52,9 +52,9 @@ def regress_vs_benchmark(
     Returns
     -------
     dict with keys:
-        'alpha'     : float — raw per-period OLS intercept (not annualised)
-        'beta'      : float — slope coefficient
-        'r_squared' : float — coefficient of determination R²
+        'alpha'     : float, raw per-period OLS intercept (not annualised)
+        'beta'      : float, slope coefficient
+        'r_squared' : float, coefficient of determination R²
     All values are NaN if insufficient data.
 
     Note: multiply alpha by periods_per_year to annualise before display.

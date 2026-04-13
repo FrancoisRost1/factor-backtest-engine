@@ -62,7 +62,7 @@ def get_sp500_tickers() -> List[str]:
         print(f"  [universe] loaded {len(tickers)} S&P 500 tickers from Wikipedia")
         return tickers
     except Exception as exc:
-        # Do NOT silently fall back to a small hardcoded list — a 20-ticker
+        # Do NOT silently fall back to a small hardcoded list, a 20-ticker
         # universe would produce garbage backtest results with no warning.
         # Raise so the caller can see the real failure and take action.
         print(

@@ -108,7 +108,7 @@ def compute_log_market_cap(fundamentals: pd.DataFrame) -> pd.Series:
     This factor uses TODAY's market cap fetched from yfinance, applied
     uniformly across the ENTIRE backtest history.  It is NOT point-in-time.
     A company's current market cap is used for 2014 rebalances as well as 2025 ones.
-    This introduces look-ahead bias into the size factor — a company that is large
+    This introduces look-ahead bias into the size factor, a company that is large
     today may have been small-cap in 2014, yet is treated as large throughout.
     In a production system, historical market cap (price × shares outstanding at date)
     would be used for each rebalance date.
@@ -204,14 +204,14 @@ def compute_all_factors(
 
     # Composite factor: percentile-rank each of the 5 factors, then average.
     # Stocks with fewer than min_valid_factors valid factor scores are excluded
-    # (NaN composite) — the signal would be too noisy with only 1-2 inputs.
+    # (NaN composite), the signal would be too noisy with only 1-2 inputs.
     # Ranking is repeated here (not deferred to backtest.py) so that the composite
     # reflects a true equal-weighted blend of all five signals.
     #
     # *** COMPOSITE CONTAMINATION WARNING ***
     # Three of the five inputs (earnings_yield, roe, log_market_cap) use today's
     # fundamental data applied uniformly across all historical rebalance dates.
-    # The composite inherits this look-ahead bias — it is not point-in-time and
+    # The composite inherits this look-ahead bias, it is not point-in-time and
     # should be interpreted with the same caveats as the individual fundamental
     # factors.  Momentum and low-volatility sub-scores are clean.
     raw_5 = result[["earnings_yield", "roe", "log_market_cap", "momentum_12_1", "rolling_vol_60d"]]

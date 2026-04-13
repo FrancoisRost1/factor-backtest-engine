@@ -93,7 +93,7 @@ def get_period_returns(
 
     rets = p_end / p_start - 1.0
 
-    # Zero or negative prices indicate data errors — suppress to NaN
+    # Zero or negative prices indicate data errors, suppress to NaN
     rets[p_start <= 0] = np.nan
     rets[p_end <= 0] = np.nan
 

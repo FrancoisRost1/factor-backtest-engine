@@ -103,9 +103,9 @@ def fetch_fundamentals(tickers: list) -> pd.DataFrame:
     run but cached permanently afterward.
 
     Columns returned:
-      pe_ratio   — trailing P/E ratio (yfinance: trailingPE)
-      roe        — trailing return on equity (yfinance: returnOnEquity)
-      market_cap — market capitalisation in USD (yfinance: marketCap)
+      pe_ratio  , trailing P/E ratio (yfinance: trailingPE)
+      roe       , trailing return on equity (yfinance: returnOnEquity)
+      market_cap, market capitalisation in USD (yfinance: marketCap)
 
     Simplifying assumption: these are today's values applied to the entire
     backtest period.  A point-in-time database would be needed for production.

@@ -6,12 +6,12 @@ The `periods_per_year` parameter controls annualisation and defaults to 12
 (monthly), matching the typical backtesting frequency for factor strategies.
 
 Metric definitions follow standard institutional practice:
-  Annualised Return   — geometric compounding (CAGR)
-  Sharpe Ratio        — mean excess return / std dev, annualised (Sharpe 1966)
-  Sortino Ratio       — mean excess return / downside deviation (Sortino 1994)
-  Max Drawdown        — peak-to-trough decline in cumulative wealth
-  Calmar Ratio        — annualised return / |max drawdown| (Young 1991)
-  Hit Rate            — fraction of periods strategy beats benchmark
+  Annualised Return  , geometric compounding (CAGR)
+  Sharpe Ratio       , mean excess return / std dev, annualised (Sharpe 1966)
+  Sortino Ratio      , mean excess return / downside deviation (Sortino 1994)
+  Max Drawdown       , peak-to-trough decline in cumulative wealth
+  Calmar Ratio       , annualised return / |max drawdown| (Young 1991)
+  Hit Rate           , fraction of periods strategy beats benchmark
 """
 
 import numpy as np
@@ -53,7 +53,7 @@ def sharpe_ratio(
 
     Sharpe = mean(excess_return) / std(excess_return) × sqrt(periods_per_year)
 
-    Returns NaN (not infinity) when volatility is zero — a constant-return
+    Returns NaN (not infinity) when volatility is zero, a constant-return
     stream has undefined risk-adjusted performance under this metric.
 
     Parameters
@@ -97,7 +97,7 @@ def sortino_ratio(
     standard institutional definition.
 
     Returns NaN when downside deviation is zero (e.g., all returns are positive
-    and equal — no harmful volatility to penalise).
+    and equal, no harmful volatility to penalise).
 
     Parameters
     ----------
@@ -117,7 +117,7 @@ def sortino_ratio(
         return np.nan
     period_rf = risk_free / periods_per_year
     excess = returns - period_rf
-    # Full-sample downside deviation: RMS of min(excess, 0) — Sortino 1994
+    # Full-sample downside deviation: RMS of min(excess, 0), Sortino 1994
     downside = np.minimum(excess.values, 0.0)
     downside_dev = float(np.sqrt(np.mean(downside ** 2)) * np.sqrt(periods_per_year))
     if downside_dev == 0:
@@ -159,7 +159,7 @@ def max_drawdown(returns: pd.Series) -> float:
         return 0.0
     # Prepend 1.0 to represent initial wealth before any returns.
     # Without this, a single negative return would show drawdown=0 because
-    # its own value becomes the "peak" — but the investor's loss is real.
+    # its own value becomes the "peak", but the investor's loss is real.
     wealth_curve = (1.0 + returns).cumprod()
     wealth_with_start = pd.concat(
         [pd.Series([1.0], index=["start"]), wealth_curve]
