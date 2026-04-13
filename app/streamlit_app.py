@@ -318,7 +318,7 @@ with tab1:
                     df_show[col] = df_show[col].apply(
                         lambda v: fmt3(_safe(v)) if not (isinstance(v, float) and np.isnan(v)) else ""
                     )
-            st.dataframe(df_show, use_container_width=True,
+            st.dataframe(df_show, width="stretch",
                          height=min(600, 38 + 35 * len(df_show)), hide_index=True)
 
 
@@ -441,7 +441,7 @@ with tab2:
                         yaxis_title="IC (Spearman)",
                     )
                     apply_plotly_theme(fig_ic)
-                    st.plotly_chart(fig_ic, use_container_width=True)
+                    st.plotly_chart(fig_ic, width="stretch")
             else:
                 missing_series_note("IC time-series")
 
@@ -470,7 +470,7 @@ with tab2:
                     yaxis_ticksuffix="%",
                 )
                 apply_plotly_theme(fig_qbar)
-                st.plotly_chart(fig_qbar, use_container_width=True)
+                st.plotly_chart(fig_qbar, width="stretch")
 
                 styled_section_label("CUMULATIVE RETURN BY QUINTILE")
                 log_scale = st.checkbox("Log scale", value=False, key="log_q")
@@ -492,7 +492,7 @@ with tab2:
                 if log_scale:
                     fig_qcum.update_layout(yaxis_type="log")
                 apply_plotly_theme(fig_qcum)
-                st.plotly_chart(fig_qcum, use_container_width=True)
+                st.plotly_chart(fig_qcum, width="stretch")
             else:
                 missing_series_note("Quintile return series")
 
@@ -550,7 +550,7 @@ with tab2:
                 barmode="group", bargap=0.2,
             )
             apply_plotly_theme(fig_sh)
-            st.plotly_chart(fig_sh, use_container_width=True)
+            st.plotly_chart(fig_sh, width="stretch")
 
         with pc_c2:
             styled_section_label("TURNOVER BY FREQUENCY")
@@ -584,7 +584,7 @@ with tab2:
         for col in ["Sharpe (G)", "Sharpe (N)", "Calmar", "IC IR"]:
             if col in cmp.columns:
                 cmp[col] = cmp[col].apply(lambda v: fmt2(_safe(v)))
-        st.dataframe(cmp, use_container_width=True, hide_index=True)
+        st.dataframe(cmp, width="stretch", hide_index=True)
 
         styled_divider()
 
@@ -636,7 +636,7 @@ with tab2:
                 barmode="group", yaxis_ticksuffix="%",
             )
             apply_plotly_theme(fig_ret)
-            st.plotly_chart(fig_ret, use_container_width=True)
+            st.plotly_chart(fig_ret, width="stretch")
 
         with perf_c2:
             styled_section_label("KEY PERFORMANCE METRICS")
@@ -786,7 +786,7 @@ with tab3:
             yaxis_ticksuffix="%",
         )
         apply_plotly_theme(fig_gn)
-        st.plotly_chart(fig_gn, use_container_width=True)
+        st.plotly_chart(fig_gn, width="stretch")
 
         styled_section_label("BEST COMBINATION FOR THIS FACTOR")
         best_fac = df_all[df_all["factor"] == sel_pc_f]
