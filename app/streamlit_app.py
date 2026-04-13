@@ -407,9 +407,7 @@ with tab2:
                     else:
                         styled_kpi("% Periods IC > 0", "n/a")
                 else:
-                    styled_kpi("% Periods IC > 0", "n/a",
-                               delta="save_timeseries=True",
-                               delta_color=TOKENS["text_muted"])
+                    styled_kpi("% Periods IC > 0", "n/a")
 
             styled_section_label("IC OVER TIME")
             ic_ts = load_ic_series(sel_fa, sel_fa_freq)
