@@ -234,19 +234,57 @@ factor-backtest-engine/
 
 ## Project status
 
-✅ COMPLETE — pushed to GitHub 2026-04-05
+✅ COMPLETE — pushed to GitHub 2026-04-05; retroactive audit 2026-04-09/10
 
 ### Key results
 - 503 tickers, 10-year backtest (2016-2026), 72 combinations
 - Quality (ROE) is the dominant signal: Sharpe 1.55, IC 0.084
 - Momentum: weak IC but decent portfolio returns
 - Value/Size/Low-Vol IC negative due to point-in-time contamination
-- 166 tests passing, Codex-audited (10 findings addressed)
+- 170 tests passing, Codex-audited twice (initial + retroactive follow-up)
 - Streamlit dashboard: 4 tabs, dark mode
+
+### Retroactive audit (2026-04-09 / 2026-04-10)
+
+A second-pass review against the mature project standards (CLAUDE.md
+"config is the source of truth" rule) found that several config keys were
+advertised but never read by the code, plus one half-wired param. Two
+commits fixed all of them:
+
+**Commit `dde4a2d` — wire dead config keys**
+- `risk_free_rate` (`config.yaml:analytics`) is now read by `main.py` and
+  passed into `compute_all_metrics` instead of the hardcoded `0.0` default.
+- `annualization_factor` (`config.yaml:analytics`) is now threaded through
+  `backtest.py → compute_all_factors → compute_rolling_volatility` instead
+  of the hardcoded `np.sqrt(252)` in `factors_price.py`.
+- `min_valid_factors` (`config.yaml:composite`) is now threaded through
+  `backtest.py → compute_all_factors` instead of the hardcoded module-level
+  `_COMPOSITE_MIN_VALID = 3` in `factors.py`.
+- `n_quantiles` (`config.yaml:portfolio`) is now passed into
+  `compute_quintile_returns` instead of the hardcoded `range(1, 6)`.
+- Removed dead keys: `data.price_column` (irrelevant under
+  `auto_adjust=True`) and `transaction_costs.cost_per_trade_bps`
+  (duplicate of `cost_per_trade`).
+
+**Commit `37869a2` — Codex follow-up: half-wired n_quantiles**
+
+Codex (`gpt-5.4`, HIGH reasoning, read-only) caught that `dde4a2d` only
+half-wired `n_quantiles`: the backtest read it from config, but
+`construct_long_only` and `construct_long_short` still hardcoded the
+labels `5` and `1`. With `n_quantiles=10`, the long-only portfolio would
+silently target the *middle* decile instead of the top, and long/short
+would target the wrong extremes — non-empty but factor-wrong.
+
+Fix: added `long_quintile` / `short_quintile` parameters to both
+construction functions, threaded them through `backtest.py` from
+`config['portfolio']['long_quintile'/'short_quintile']`. Added 4 new unit
+tests (`TestConfigurableNQuantiles` in `tests/test_portfolio.py`) covering
+decile sorts (`n_quantiles=10`), including a regression test that pins
+the wrong-bucket bug to prevent recurrence.
 
 ### GitHub
 github.com/FrancoisRost1/factor-backtest-engine
 
 ---
 
-*Last updated: 2026-04-05*
+*Last updated: 2026-04-10*

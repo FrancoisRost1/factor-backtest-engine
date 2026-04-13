@@ -1,14 +1,14 @@
 """
-streamlit_app.py — Factor Model + Backtesting Engine Dashboard
+streamlit_app.py | Factor Model + Backtesting Engine Dashboard
 
 Loads pre-computed results from outputs/backtest_results.csv (summary) and
 optional time-series CSVs (outputs/ic_series_*.csv, outputs/quintile_*.csv).
 
 Layout (per CLAUDE.md standards, quant research order):
-  TAB 1: OVERVIEW      — filters, best-combination panel, rankings table
-  TAB 2: FACTOR ANALYSIS  — Signal Quality to Portfolio Construction to Performance
-  TAB 3: PORTFOLIO COMPARISON — long-only vs long/short side-by-side
-  TAB 4: METHODOLOGY   — static research write-up
+  TAB 1: OVERVIEW             | filters, best-combination panel, rankings table
+  TAB 2: FACTOR ANALYSIS      | Signal Quality, Portfolio Construction, Performance
+  TAB 3: PORTFOLIO COMPARISON | long-only vs long/short side-by-side
+  TAB 4: METHODOLOGY          | static research write-up
 
 Run with: streamlit run app/streamlit_app.py
 """
@@ -25,131 +25,49 @@ import numpy as np
 import plotly.graph_objects as go
 from pathlib import Path
 
-# ── Page config ────────────────────────────────────────────────────────────────
+from style_inject import (
+    inject_styles,
+    styled_header,
+    styled_kpi,
+    styled_card,
+    styled_divider,
+    styled_section_label,
+    apply_plotly_theme,
+    TOKENS,
+)
+
+# Page config
 
 st.set_page_config(
     page_title="Factor Backtest Engine",
     layout="wide",
     initial_sidebar_state="collapsed",
 )
+inject_styles()
 
-# ── CSS — Bloomberg dark mode ──────────────────────────────────────────────────
-
-st.markdown("""
-<style>
-html, body, [class*="css"], .stApp {
-    background-color: #0e1117 !important;
-    color: #e8e8e8 !important;
-    font-size: 13px !important;
-}
-h1, h2, h3, h4 {
-    font-size: 13px !important;
-    font-weight: 600 !important;
-    color: #ffffff !important;
-    text-transform: uppercase !important;
-    letter-spacing: 0.8px !important;
-}
-[data-testid="metric-container"] {
-    background: #161b22 !important;
-    border: 1px solid #30363d !important;
-    border-radius: 2px !important;
-    padding: 8px 12px !important;
-}
-[data-testid="metric-container"] label {
-    font-size: 10px !important;
-    color: #8b949e !important;
-    text-transform: uppercase !important;
-    letter-spacing: 0.5px !important;
-}
-[data-testid="metric-container"] [data-testid="metric-value"] {
-    font-size: 18px !important;
-    font-weight: 600 !important;
-    color: #f0f6fc !important;
-}
-[data-testid="stDataFrame"] { background: #161b22 !important; }
-[data-testid="stSelectbox"] > div > div,
-[data-testid="stMultiSelect"] > div > div {
-    background-color: #161b22 !important;
-    border: 1px solid #30363d !important;
-    color: #e8e8e8 !important;
-}
-p, span, div, label, small, li { color: #c9d1d9 !important; }
-hr { margin: 0.5rem 0 !important; border-color: #30363d !important; }
-.block-container {
-    padding-top: 1rem !important;
-    padding-bottom: 0 !important;
-    background-color: #0e1117 !important;
-}
-[data-testid="stTabs"] [data-baseweb="tab-list"] {
-    background-color: #161b22 !important;
-    border-bottom: 1px solid #30363d !important;
-    gap: 0px !important;
-}
-[data-testid="stTabs"] [data-baseweb="tab"] {
-    background-color: transparent !important;
-    color: #8b949e !important;
-    font-size: 11px !important;
-    font-weight: 600 !important;
-    letter-spacing: 0.8px !important;
-    text-transform: uppercase !important;
-    border-radius: 0px !important;
-    padding: 8px 20px !important;
-}
-[data-testid="stTabs"] [aria-selected="true"] {
-    color: #f0f6fc !important;
-    border-bottom: 2px solid #58a6ff !important;
-    background-color: transparent !important;
-}
-section[data-testid="stSidebar"] {
-    background-color: #161b22 !important;
-    border-right: 1px solid #30363d !important;
-}
-</style>
-""", unsafe_allow_html=True)
-
-# ── Constants ──────────────────────────────────────────────────────────────────
+# Constants
 
 FACTOR_LABELS = {
     "value":          "Value (EY)",
     "momentum":       "Momentum (12-1)",
     "quality":        "Quality (ROE)",
     "size":           "Size (Log MCap)",
-    "low_volatility": "Low Vol (60d σ)",
+    "low_volatility": "Low Vol (60d sigma)",
     "composite":      "Composite",
 }
 
 # Price-based factors have no point-in-time data issue; fundamental factors do.
 FUNDAMENTAL_FACTORS = {"value", "quality", "size"}
 
-ACCENT      = "#58a6ff"
-GREEN       = "#3fb950"
-RED         = "#f85149"
-AMBER       = "#d29922"
-PURPLE      = "#bc8cff"
-CARD_BG     = "#161b22"
-BORDER      = "#30363d"
-PLOT_BG     = "#0e1117"
-PAPER_BG    = "#0e1117"
-GRID_COLOR  = "#21262d"
-TEXT_COLOR  = "#8b949e"
+QUINTILE_COLORS = [
+    TOKENS["accent_danger"],
+    TOKENS["accent_warning"],
+    TOKENS["text_secondary"],
+    TOKENS["accent_primary"],
+    TOKENS["accent_success"],
+]
 
-QUINTILE_COLORS = ["#f85149", "#d29922", "#8b949e", "#58a6ff", "#3fb950"]  # Q1→Q5
-
-BASE_LAYOUT = dict(
-    paper_bgcolor=PAPER_BG,
-    plot_bgcolor=PLOT_BG,
-    font=dict(color="#c9d1d9", size=11),
-    xaxis=dict(gridcolor=GRID_COLOR, linecolor=BORDER, tickfont=dict(color=TEXT_COLOR)),
-    yaxis=dict(gridcolor=GRID_COLOR, linecolor=BORDER, tickfont=dict(color=TEXT_COLOR)),
-    margin=dict(l=44, r=20, t=40, b=36),
-    legend=dict(
-        bgcolor="rgba(0,0,0,0)",
-        bordercolor=BORDER,
-        font=dict(color="#c9d1d9", size=10),
-    ),
-)
-
-# ── Helpers ────────────────────────────────────────────────────────────────────
+# Helpers
 
 def pct(v, dec=1):
     if v is None or (isinstance(v, float) and np.isnan(v)):
@@ -157,12 +75,12 @@ def pct(v, dec=1):
     return f"{v * 100:.{dec}f}%"
 
 def fmt_alpha(v):
-    """Format annualised alpha, collapsing near-zero to '≈ 0.0%' to avoid '-0.0%'."""
+    """Format annualised alpha, collapsing near-zero to 'approx 0.0%' to avoid '-0.0%'."""
     v = _safe(v)
     if np.isnan(v):
         return ""
     if abs(v) < 0.0005:
-        return "≈ 0.0%"
+        return "~ 0.0%"
     return f"{v * 100:.1f}%"
 
 def fmt3(v):
@@ -184,114 +102,48 @@ def _safe(v):
     except Exception:
         return np.nan
 
-def color_val(v, good_above=0.0):
+def delta_color(v, good_above=0.0):
     v = _safe(v)
     if np.isnan(v):
-        return TEXT_COLOR
-    return GREEN if v > good_above else RED
+        return TOKENS["text_muted"]
+    return TOKENS["accent_success"] if v > good_above else TOKENS["accent_danger"]
 
-def apply_layout(fig, title="", yaxis_fmt=None, yaxis2=False):
-    layout = dict(**BASE_LAYOUT, title=dict(
-        text=title, font=dict(size=11, color=TEXT_COLOR), x=0, xanchor="left"
-    ))
-    if yaxis_fmt:
-        layout["yaxis"] = dict(BASE_LAYOUT["xaxis"], tickformat=yaxis_fmt,
-                                gridcolor=GRID_COLOR, linecolor=BORDER,
-                                tickfont=dict(color=TEXT_COLOR))
-    fig.update_layout(**layout)
-    return fig
-
-def kpi_card(label, value, color="#f0f6fc", note=""):
-    note_html = f"<div style='font-size:10px;color:{TEXT_COLOR};margin-top:2px'>{note}</div>" if note else ""
-    st.markdown(f"""
-    <div style='background:{CARD_BG};border:1px solid {BORDER};border-radius:2px;
-                padding:10px 14px;min-height:72px'>
-        <div style='font-size:10px;color:{TEXT_COLOR};text-transform:uppercase;
-                    letter-spacing:0.5px;margin-bottom:4px'>{label}</div>
-        <div style='font-size:18px;font-weight:600;color:{color}'>{value}</div>
-        {note_html}
-    </div>""", unsafe_allow_html=True)
-
-def section_header(title, accent=False):
-    border_color = ACCENT if accent else BORDER
-    text_color   = "#f0f6fc" if accent else TEXT_COLOR
-    st.markdown(
-        f"<div style='font-size:10px;font-weight:700;color:{text_color};"
-        f"text-transform:uppercase;letter-spacing:0.9px;"
-        f"border-bottom:2px solid {border_color};padding-bottom:5px;margin:20px 0 10px 0'>"
-        f"{title}</div>",
-        unsafe_allow_html=True,
-    )
-
-def block_header(number, title, subtitle=""):
-    sub_html = f"<span style='font-size:10px;color:{TEXT_COLOR};margin-left:8px'>{subtitle}</span>" if subtitle else ""
-    st.markdown(
-        f"<div style='background:#161b22;border-left:3px solid {ACCENT};"
-        f"padding:8px 12px;margin:24px 0 12px 0;border-radius:0 2px 2px 0'>"
-        f"<span style='font-size:11px;font-weight:700;color:{ACCENT}'>{number}. {title.upper()}</span>"
-        f"{sub_html}</div>",
-        unsafe_allow_html=True,
-    )
-
-def no_data_banner():
-    st.markdown(f"""
-    <div style='background:{CARD_BG};border:1px solid {AMBER};border-radius:2px;
-                padding:20px 24px;margin:20px 0'>
-        <div style='font-size:13px;font-weight:600;color:{AMBER};text-transform:uppercase;letter-spacing:0.8px'>
-             No results found
-        </div>
-        <div style='margin-top:8px;color:#c9d1d9;font-size:12px'>
-            Run the backtest pipeline first:<br><br>
-            <code style='background:#0d1117;padding:4px 8px;border-radius:2px;
-                         color:{ACCENT};font-size:12px'>python main.py</code><br><br>
-            This fetches data from Yahoo Finance, runs all 60 backtest combinations,
-            and saves results to <code>outputs/backtest_results.csv</code>.
-        </div>
-    </div>""", unsafe_allow_html=True)
+def styled_kpi_colored(label, value, v_for_color, good_above=0.0, delta=""):
+    """KPI whose delta text is the value itself, colored by sign vs threshold."""
+    dc = delta_color(v_for_color, good_above)
+    styled_kpi(label, value, delta=delta, delta_color=dc)
 
 def missing_series_note(label="Per-period data"):
-    st.markdown(
-        f"<div style='background:{CARD_BG};border:1px solid {GRID_COLOR};border-radius:2px;"
-        f"padding:12px 16px;color:{TEXT_COLOR};font-size:11px'>"
-        f"<b style='color:#c9d1d9'>{label} not available.</b><br>"
-        f"Run backtest with <code>save_timeseries=True</code> to enable this chart."
-        f"</div>", unsafe_allow_html=True)
+    styled_card(
+        f"<b style='color:{TOKENS['text_primary']}'>{label} not available.</b> "
+        f"Run backtest with <code>save_timeseries=True</code> to enable this chart.",
+        accent_color=TOKENS["accent_warning"],
+    )
 
 def interpretation_box():
-    st.markdown(f"""
-    <div style='background:#161b22;border:1px solid {ACCENT};border-radius:2px;
-                padding:14px 18px;margin-top:12px'>
-        <div style='font-size:10px;font-weight:700;color:{ACCENT};text-transform:uppercase;
-                    letter-spacing:0.8px;margin-bottom:8px'>How to Interpret</div>
-        <table style='width:100%;border-collapse:collapse;font-size:11px'>
-          <tr>
-            <td style='padding:3px 8px;color:{GREEN};font-weight:600;white-space:nowrap'>IC &gt; 0</td>
-            <td style='padding:3px 8px;color:#c9d1d9'>Predictive signal: factor rank correlates with forward returns</td>
-          </tr>
-          <tr>
-            <td style='padding:3px 8px;color:{TEXT_COLOR};font-weight:600;white-space:nowrap'>IC ≈ 0</td>
-            <td style='padding:3px 8px;color:#c9d1d9'>Weak or absent signal: factor has no predictive power</td>
-          </tr>
-          <tr>
-            <td style='padding:3px 8px;color:{RED};font-weight:600;white-space:nowrap'>IC &lt; 0</td>
-            <td style='padding:3px 8px;color:#c9d1d9'>Inverted or biased signal: ranking predicts opposite direction</td>
-          </tr>
-          <tr>
-            <td style='padding:3px 8px;color:{GREEN};font-weight:600;white-space:nowrap'>IC IR &gt; 0.5</td>
-            <td style='padding:3px 8px;color:#c9d1d9'>Consistent signal: mean(IC)/std(IC) often considered strong at this level (Grinold &amp; Kahn)</td>
-          </tr>
-          <tr>
-            <td style='padding:3px 8px;color:{GREEN};font-weight:600;white-space:nowrap'>Monotonic Q1 to Q5</td>
-            <td style='padding:3px 8px;color:#c9d1d9'>Strong factor: returns increase as predicted across all quintiles</td>
-          </tr>
-          <tr>
-            <td style='padding:3px 8px;color:{TEXT_COLOR};font-weight:600;white-space:nowrap'>Flat quintiles</td>
-            <td style='padding:3px 8px;color:#c9d1d9'>No factor signal: ranking explains nothing about returns</td>
-          </tr>
-        </table>
-    </div>""", unsafe_allow_html=True)
+    rows = [
+        ("IC > 0",            TOKENS["accent_success"], "Predictive signal: factor rank correlates with forward returns"),
+        ("IC ~ 0",            TOKENS["text_muted"],     "Weak or absent signal: factor has no predictive power"),
+        ("IC < 0",            TOKENS["accent_danger"],  "Inverted or biased signal: ranking predicts opposite direction"),
+        ("IC IR > 0.5",       TOKENS["accent_success"], "Consistent signal: mean(IC)/std(IC) often considered strong (Grinold & Kahn)"),
+        ("Monotonic Q1 to Q5", TOKENS["accent_success"], "Strong factor: returns increase as predicted across all quintiles"),
+        ("Flat quintiles",    TOKENS["text_muted"],     "No factor signal: ranking explains nothing about returns"),
+    ]
+    table_rows = "".join(
+        f"<tr>"
+        f"<td style='padding:3px 8px;color:{color};font-weight:600;white-space:nowrap'>{label}</td>"
+        f"<td style='padding:3px 8px;color:{TOKENS['text_secondary']}'>{desc}</td>"
+        f"</tr>"
+        for (label, color, desc) in rows
+    )
+    body = (
+        f"<div style='font-size:0.65rem;font-weight:700;color:{TOKENS['accent_primary']};"
+        f"text-transform:uppercase;letter-spacing:0.1em;margin-bottom:8px'>How to Interpret</div>"
+        f"<table style='width:100%;border-collapse:collapse;font-size:0.75rem'>{table_rows}</table>"
+    )
+    styled_card(body, accent_color=TOKENS["accent_primary"])
 
-# ── Data loading ───────────────────────────────────────────────────────────────
+# Data loading
 
 OUTPUTS = Path(__file__).parent.parent / "outputs"
 
@@ -318,36 +170,31 @@ def load_quintile_returns(factor: str, freq: str, wt: str) -> Optional[pd.DataFr
         return None
     return pd.read_csv(path, index_col=0, parse_dates=True)
 
-# ── Header + research warning ──────────────────────────────────────────────────
+# Header
 
-st.markdown("""
-<div style='border-bottom:1px solid #30363d;padding-bottom:10px;margin-bottom:8px'>
-    <span style='font-size:17px;font-weight:700;color:#f0f6fc;letter-spacing:0.5px'>
-        FACTOR BACKTEST ENGINE
-    </span>
-    <span style='font-size:11px;color:#8b949e;margin-left:12px'>
-        S&P 500 · 5 Factors · 2016-2026 · 60 Combinations
-    </span>
-</div>""", unsafe_allow_html=True)
+styled_header(
+    "Factor Backtest Engine",
+    "S&P 500 | 5 Factors | 2016-2026 | 60 Combinations",
+)
 
-# ⚠ Permanent research-limitation warning
-st.markdown(f"""
-<div style='background:#1c1200;border:1px solid {AMBER};border-radius:2px;
-            padding:10px 16px;margin-bottom:12px;display:flex;align-items:flex-start;gap:10px'>
-    <span style='font-size:14px'></span>
-    <div>
-        <span style='font-size:11px;font-weight:700;color:{AMBER};text-transform:uppercase;
-                     letter-spacing:0.6px'>Research Limitation: Results Not Investable</span>
-        <span style='font-size:11px;color:#c9a227;margin-left:8px'>
-            Fundamental factors (Value, Quality, Size) use <b>non-point-in-time data</b>
-           : yfinance current values applied retroactively across the entire backtest period.
-            Returns for these factors are likely overstated.
-            Price-based factors (Momentum, Low Volatility) are clean.
-        </span>
-    </div>
-</div>""", unsafe_allow_html=True)
+styled_card(
+    f"<b style='color:{TOKENS['accent_warning']}'>Research Limitation: Results Not Investable.</b> "
+    "Fundamental factors (Value, Quality, Size) use non-point-in-time data: yfinance "
+    "current values applied retroactively across the entire backtest period. Returns for "
+    "these factors are likely overstated. Price-based factors (Momentum, Low Volatility) are clean.",
+    accent_color=TOKENS["accent_warning"],
+)
 
 df_all = load_results()
+
+def _no_data_banner():
+    styled_card(
+        f"<b style='color:{TOKENS['accent_warning']}'>No results found.</b> "
+        f"Run the backtest pipeline first: <code>python main.py</code>. "
+        f"This fetches data from Yahoo Finance, runs all 60 backtest combinations, "
+        f"and saves results to <code>outputs/backtest_results.csv</code>.",
+        accent_color=TOKENS["accent_warning"],
+    )
 
 tab1, tab2, tab3, tab4 = st.tabs([
     "OVERVIEW",
@@ -356,16 +203,16 @@ tab1, tab2, tab3, tab4 = st.tabs([
     "METHODOLOGY",
 ])
 
-# ══════════════════════════════════════════════════════════════════════════════
-# TAB 1 — OVERVIEW
-# ══════════════════════════════════════════════════════════════════════════════
+# ======================================================================
+# TAB 1 | OVERVIEW
+# ======================================================================
 
 with tab1:
     if df_all is None:
-        no_data_banner()
+        _no_data_banner()
     else:
         # Filters
-        section_header("FILTERS")
+        styled_section_label("FILTERS")
         fc1, fc2, fc3, fc4 = st.columns(4)
         with fc1:
             all_factors = sorted(df_all["factor"].unique())
@@ -398,19 +245,13 @@ with tab1:
         if df.empty:
             st.info("No results match the current filters.")
         else:
-            # ── Best-performance panel ─────────────────────────────────────────
-            st.markdown(f"""
-            <div style='margin-top:20px;padding:8px 14px;background:#0d1117;
-                        border:1px solid {BORDER};border-radius:2px;margin-bottom:2px'>
-                <span style='font-size:10px;font-weight:700;color:{AMBER};
-                             text-transform:uppercase;letter-spacing:0.8px'>
-                    ▶ BEST PERFORMANCE (by Gross Sharpe): not best signal quality
-                </span>
-            </div>
-            <div style='padding:4px 14px 8px 14px;font-size:10px;color:{TEXT_COLOR}'>
-                Selected by Sharpe ratio: may reflect risk exposure or data bias,
-                not genuine predictive power. Check IC and quintile spread to assess signal quality.
-            </div>""", unsafe_allow_html=True)
+            styled_divider()
+            styled_section_label("BEST PERFORMANCE (BY GROSS SHARPE)")
+            styled_card(
+                "Selected by Sharpe ratio. May reflect risk exposure or data bias, "
+                "not genuine predictive power. Check IC and quintile spread to assess signal quality.",
+                accent_color=TOKENS["accent_warning"],
+            )
 
             best = df.loc[df["sharpe_gross"].idxmax()]
             ret_v    = _safe(best.get("return_gross", np.nan))
@@ -423,28 +264,27 @@ with tab1:
 
             k1, k2, k3, k4, k5, k6 = st.columns(6)
             with k1:
-                kpi_card("Ann. Return (Gross)", pct(ret_v), color=color_val(ret_v))
+                styled_kpi("Ann. Return (Gross)", pct(ret_v), delta="", delta_color=delta_color(ret_v))
             with k2:
-                kpi_card("Sharpe (Gross)", fmt2(sharpe_v), color=color_val(sharpe_v))
+                styled_kpi("Sharpe (Gross)", fmt2(sharpe_v), delta="", delta_color=delta_color(sharpe_v))
             with k3:
-                kpi_card("Max Drawdown", pct(mdd_v), color=color_val(mdd_v, -0.05))
+                styled_kpi("Max Drawdown", pct(mdd_v), delta="", delta_color=delta_color(mdd_v, -0.05))
             with k4:
-                kpi_card("Alpha (Ann.)", fmt_alpha(alpha_v), color=color_val(alpha_v))
+                styled_kpi("Alpha (Ann.)", fmt_alpha(alpha_v), delta="", delta_color=delta_color(alpha_v))
             with k5:
-                kpi_card("Mean IC", fmt2(ic_v), color=color_val(ic_v),
-                         note=f"IR: {fmt2(ic_ir_v)}")
+                styled_kpi("Mean IC", fmt2(ic_v), delta=f"IR {fmt2(ic_ir_v)}", delta_color=delta_color(ic_v))
             with k6:
-                kpi_card("Avg Turnover / Period", pct(to_v), color="#f0f6fc")
+                styled_kpi("Avg Turnover / Period", pct(to_v))
 
             st.markdown(
-                f"<div style='font-size:10px;color:{TEXT_COLOR};margin:6px 0 16px 2px'>"
-                f"Combination: <b style='color:#f0f6fc'>"
-                f"{FACTOR_LABELS.get(best['factor'], best['factor'])}</b> · "
-                f"{best['frequency']} · {best['weighting']} · {best['portfolio_type']}"
+                f"<div style='font-size:0.75rem;color:{TOKENS['text_muted']};margin:6px 0 16px 2px'>"
+                f"Combination: <b style='color:{TOKENS['text_primary']}'>"
+                f"{FACTOR_LABELS.get(best['factor'], best['factor'])}</b> | "
+                f"{best['frequency']} | {best['weighting']} | {best['portfolio_type']}"
                 f"</div>", unsafe_allow_html=True)
 
-            # ── Summary table ──────────────────────────────────────────────────
-            section_header("ALL COMBINATIONS: SORTED BY SHARPE (GROSS)")
+            # Summary table
+            styled_section_label("ALL COMBINATIONS: SORTED BY SHARPE (GROSS)")
 
             display_cols = {
                 "factor": "Factor", "frequency": "Freq", "weighting": "Weighting",
@@ -466,18 +306,13 @@ with tab1:
                     df_show[col] = df_show[col].apply(
                         lambda v: pct(_safe(v)) if not (isinstance(v, float) and np.isnan(v)) else ""
                     )
-            # Alpha: use fmt_alpha to suppress "-0.0%"
             if "Alpha" in df_show.columns:
-                df_show["Alpha"] = df_show["Alpha"].apply(
-                    lambda v: fmt_alpha(_safe(v))
-                )
-            # Sharpe / Sortino / Calmar / Beta / R²: 2 decimals
+                df_show["Alpha"] = df_show["Alpha"].apply(lambda v: fmt_alpha(_safe(v)))
             for col in ["Sharpe (G)", "Sharpe (N)", "Sortino", "Calmar", "Beta"]:
                 if col in df_show.columns:
                     df_show[col] = df_show[col].apply(
                         lambda v: fmt2(_safe(v)) if not (isinstance(v, float) and np.isnan(v)) else ""
                     )
-            # Mean IC and IC IR: 3 decimals for precision
             for col in ["Mean IC", "IC IR"]:
                 if col in df_show.columns:
                     df_show[col] = df_show[col].apply(
@@ -487,16 +322,15 @@ with tab1:
                          height=min(600, 38 + 35 * len(df_show)), hide_index=True)
 
 
-# ══════════════════════════════════════════════════════════════════════════════
-# TAB 2 — FACTOR ANALYSIS
-# Structure: 1. Signal Quality to 2. Portfolio Construction to 3. Performance
-# ══════════════════════════════════════════════════════════════════════════════
+# ======================================================================
+# TAB 2 | FACTOR ANALYSIS
+# Structure: Signal Quality, Portfolio Construction, Performance
+# ======================================================================
 
 with tab2:
     if df_all is None:
-        no_data_banner()
+        _no_data_banner()
     else:
-        # ── Selection controls ─────────────────────────────────────────────────
         sel_c1, sel_c2, sel_c3, sel_c4 = st.columns([2, 2, 2, 2])
         with sel_c1:
             sel_fa = st.selectbox(
@@ -529,60 +363,55 @@ with tab2:
         ]
         row_sel = df_sel.iloc[0] if len(df_sel) > 0 else None
 
-        # Warn if fundamental factor selected
         if sel_fa in FUNDAMENTAL_FACTORS:
-            st.markdown(f"""
-            <div style='background:#1c1200;border:1px solid {AMBER};border-radius:2px;
-                        padding:8px 14px;margin:4px 0 8px 0;font-size:11px;color:#c9a227'>
-                 <b style='color:{AMBER}'>{FACTOR_LABELS.get(sel_fa, sel_fa)}</b>
-                uses non-point-in-time fundamental data. Signal metrics and performance
-                figures are likely upward-biased.
-            </div>""", unsafe_allow_html=True)
+            styled_card(
+                f"<b style='color:{TOKENS['accent_warning']}'>{FACTOR_LABELS.get(sel_fa, sel_fa)}</b> "
+                f"uses non-point-in-time fundamental data. Signal metrics and performance "
+                f"figures are likely upward-biased.",
+                accent_color=TOKENS["accent_warning"],
+            )
 
-        # ══════════════════════════════════════════════════════════════════════
-        # BLOCK 1 — SIGNAL QUALITY
-        # ══════════════════════════════════════════════════════════════════════
-        block_header("1", "Signal Quality", "Does the factor predict returns?")
+        # ----- BLOCK 1: SIGNAL QUALITY -----
+        styled_divider()
+        styled_section_label("1. SIGNAL QUALITY | DOES THE FACTOR PREDICT RETURNS?")
 
         sig_left, sig_right = st.columns([5, 2])
 
         with sig_left:
-            # IC statistics cards
-            section_header("INFORMATION COEFFICIENT", accent=True)
+            styled_section_label("INFORMATION COEFFICIENT")
             ic_mean  = _safe(row_sel["mean_ic"])  if row_sel is not None else np.nan
             ic_ir    = _safe(row_sel["ic_ir"])    if row_sel is not None else np.nan
 
             ic_c1, ic_c2, ic_c3 = st.columns(3)
             with ic_c1:
-                ic_col = GREEN if not np.isnan(ic_mean) and ic_mean > 0.02 else \
-                         RED   if not np.isnan(ic_mean) and ic_mean < 0 else AMBER
-                kpi_card("Mean IC", fmt2(ic_mean), color=ic_col)
+                ic_col = (TOKENS["accent_success"] if not np.isnan(ic_mean) and ic_mean > 0.02
+                          else TOKENS["accent_danger"] if not np.isnan(ic_mean) and ic_mean < 0
+                          else TOKENS["accent_warning"])
+                styled_kpi("Mean IC", fmt2(ic_mean), delta="", delta_color=ic_col)
             with ic_c2:
-                irir_col = GREEN if not np.isnan(ic_ir) and ic_ir > 0.5 else \
-                           AMBER if not np.isnan(ic_ir) and ic_ir > 0 else RED
-                kpi_card("IC IR  [mean(IC) / std(IC)]", fmt2(ic_ir), color=irir_col,
-                         note="Reference: > 0.5 often considered strong")
+                irir_col = (TOKENS["accent_success"] if not np.isnan(ic_ir) and ic_ir > 0.5
+                            else TOKENS["accent_warning"] if not np.isnan(ic_ir) and ic_ir > 0
+                            else TOKENS["accent_danger"])
+                styled_kpi("IC IR", fmt2(ic_ir),
+                           delta="ref > 0.5", delta_color=irir_col)
             with ic_c3:
-                # Computed from actual per-period IC series only — not from summary stats
                 _ic_ts_for_pct = load_ic_series(sel_fa, sel_fa_freq)
                 if _ic_ts_for_pct is not None and len(_ic_ts_for_pct) > 0:
                     _col = _ic_ts_for_pct.columns[0]
                     _vals = _ic_ts_for_pct[_col].dropna()
                     if len(_vals) > 0:
                         pct_pos = float((_vals > 0).mean())
-                        kpi_card("% Periods IC > 0", pct(pct_pos),
-                                 color=color_val(pct_pos, 0.5),
-                                 note=f"n = {len(_vals)} periods")
+                        styled_kpi("% Periods IC > 0", pct(pct_pos),
+                                   delta=f"n = {len(_vals)}",
+                                   delta_color=delta_color(pct_pos, 0.5))
                     else:
-                        kpi_card("% Periods IC > 0", "N/A: insufficient data",
-                                 color=TEXT_COLOR)
+                        styled_kpi("% Periods IC > 0", "n/a")
                 else:
-                    kpi_card("% Periods IC > 0", "N/A: series unavailable",
-                             color=TEXT_COLOR,
-                             note="save_timeseries=True required")
+                    styled_kpi("% Periods IC > 0", "n/a",
+                               delta="save_timeseries=True",
+                               delta_color=TOKENS["text_muted"])
 
-            # IC time series — load once, reuse for "% IC > 0" card
-            section_header("IC OVER TIME")
+            styled_section_label("IC OVER TIME")
             ic_ts = load_ic_series(sel_fa, sel_fa_freq)
             show_rolling = st.checkbox("Show 6-period rolling mean", value=True, key="ic_rolling")
 
@@ -593,29 +422,33 @@ with tab2:
                     fig_ic = go.Figure()
                     fig_ic.add_trace(go.Bar(
                         x=ic_vals.index, y=ic_vals.values,
-                        marker_color=[GREEN if v > 0 else RED for v in ic_vals.values],
-                        marker_line_width=0, opacity=0.8, name="IC",
+                        marker_color=[TOKENS["accent_success"] if v > 0 else TOKENS["accent_danger"]
+                                      for v in ic_vals.values],
+                        marker_line_width=0, opacity=0.85, name="IC",
                         showlegend=True,
                     ))
                     if show_rolling and len(ic_vals) >= 6:
                         roll = ic_vals.rolling(6).mean()
                         fig_ic.add_trace(go.Scatter(
                             x=roll.index, y=roll.values,
-                            line=dict(color=AMBER, width=2), name="6-period MA",
+                            line=dict(color=TOKENS["accent_warning"], width=1.5),
+                            name="6-period MA",
                         ))
-                    fig_ic.add_hline(y=0, line_color=BORDER, line_width=1.5)
-                    apply_layout(fig_ic, f"{FACTOR_LABELS.get(sel_fa, sel_fa)}: IC per Period")
+                    fig_ic.add_hline(y=0, line_color=TOKENS["border_default"], line_width=1)
+                    fig_ic.update_layout(
+                        title=f"{FACTOR_LABELS.get(sel_fa, sel_fa)}: IC per Period",
+                        xaxis_title="Date",
+                        yaxis_title="IC (Spearman)",
+                    )
+                    apply_plotly_theme(fig_ic)
                     st.plotly_chart(fig_ic, use_container_width=True)
             else:
                 missing_series_note("IC time-series")
-                st.markdown("<div style='margin-bottom:8px'></div>", unsafe_allow_html=True)
 
-            # Quintile return spread
-            section_header("QUINTILE RETURN SPREAD (Q1 = WORST, Q5 = BEST)")
+            styled_section_label("QUINTILE RETURN SPREAD (Q1 = WORST, Q5 = BEST)")
             qt_data = load_quintile_returns(sel_fa, sel_fa_freq, sel_fa_wt)
 
             if qt_data is not None and len(qt_data) > 0:
-                # Compute mean return per quintile
                 q_means = qt_data.mean()
                 quintile_labels = [f"Q{int(c)}" if str(c).isdigit() else str(c)
                                    for c in q_means.index]
@@ -626,17 +459,20 @@ with tab2:
                     marker_color=QUINTILE_COLORS[:len(q_means)],
                     text=[pct(v) for v in q_means.values],
                     textposition="outside",
-                    textfont=dict(size=11, color="#c9d1d9"),
+                    textfont=dict(size=11, color=TOKENS["text_secondary"]),
                     showlegend=False,
                 ))
-                fig_qbar.add_hline(y=0, line_color=BORDER, line_width=1)
-                apply_layout(fig_qbar,
-                    f"Mean Period Return by Quintile: {sel_fa_freq.capitalize()}")
-                fig_qbar.update_layout(yaxis_ticksuffix="%")
+                fig_qbar.add_hline(y=0, line_color=TOKENS["border_default"], line_width=1)
+                fig_qbar.update_layout(
+                    title=f"Mean Period Return by Quintile: {sel_fa_freq.capitalize()}",
+                    xaxis_title="Quintile",
+                    yaxis_title="Return (%)",
+                    yaxis_ticksuffix="%",
+                )
+                apply_plotly_theme(fig_qbar)
                 st.plotly_chart(fig_qbar, use_container_width=True)
 
-                # Cumulative return by quintile
-                section_header("CUMULATIVE RETURN BY QUINTILE")
+                styled_section_label("CUMULATIVE RETURN BY QUINTILE")
                 log_scale = st.checkbox("Log scale", value=False, key="log_q")
                 fig_qcum = go.Figure()
                 for i, col in enumerate(qt_data.columns):
@@ -645,60 +481,48 @@ with tab2:
                     fig_qcum.add_trace(go.Scatter(
                         x=cum.index, y=cum.values,
                         name=label,
-                        line=dict(color=QUINTILE_COLORS[i % 5], width=2),
+                        line=dict(color=QUINTILE_COLORS[i % 5], width=1.5),
                         mode="lines",
                     ))
-                apply_layout(fig_qcum,
-                    f"Cumulative Return by Quintile: {sel_fa_freq.capitalize()}")
+                fig_qcum.update_layout(
+                    title=f"Cumulative Return by Quintile: {sel_fa_freq.capitalize()}",
+                    xaxis_title="Date",
+                    yaxis_title="Growth of $1",
+                )
                 if log_scale:
                     fig_qcum.update_layout(yaxis_type="log")
+                apply_plotly_theme(fig_qcum)
                 st.plotly_chart(fig_qcum, use_container_width=True)
             else:
                 missing_series_note("Quintile return series")
-                st.markdown(
-                    f"<div style='background:{CARD_BG};border:1px solid {GRID_COLOR};"
-                    f"border-radius:2px;padding:12px 16px;color:{TEXT_COLOR};font-size:11px;"
-                    f"margin-top:6px'>Cumulative quintile chart also requires per-period data.</div>",
-                    unsafe_allow_html=True)
 
         with sig_right:
             st.markdown("<div style='margin-top:48px'></div>", unsafe_allow_html=True)
             interpretation_box()
 
-            # IC across frequencies summary
-            section_header("IC BY FREQUENCY")
+            styled_section_label("IC BY FREQUENCY")
             for f in ["monthly", "quarterly", "annual"]:
                 sub = df_fa[(df_fa["frequency"] == f) & (df_fa["weighting"] == sel_fa_wt)]
                 if len(sub) > 0:
                     ic_v = _safe(sub["mean_ic"].values[0])
                     ir_v = _safe(sub["ic_ir"].values[0])
-                    ic_col = GREEN if not np.isnan(ic_v) and ic_v > 0 else RED
-                    st.markdown(
-                        f"<div style='background:{CARD_BG};border:1px solid {BORDER};"
-                        f"border-radius:2px;padding:8px 12px;margin-bottom:6px'>"
-                        f"<div style='font-size:10px;color:{TEXT_COLOR};text-transform:uppercase;letter-spacing:0.5px'>"
-                        f"{f.capitalize()}</div>"
-                        f"<div style='font-size:14px;font-weight:600;color:{ic_col}'>"
-                        f"IC {fmt2(ic_v)}</div>"
-                        f"<div style='font-size:10px;color:{TEXT_COLOR}'>IR: {fmt2(ir_v)}</div>"
-                        f"</div>", unsafe_allow_html=True)
+                    ic_col = (TOKENS["accent_success"] if not np.isnan(ic_v) and ic_v > 0
+                              else TOKENS["accent_danger"])
+                    styled_kpi(f.capitalize(), f"IC {fmt2(ic_v)}",
+                               delta=f"IR {fmt2(ir_v)}", delta_color=ic_col)
 
-        st.markdown(f"<div style='border-top:1px solid {BORDER};margin:24px 0 0 0'></div>",
-                    unsafe_allow_html=True)
+        styled_divider()
 
-        # ══════════════════════════════════════════════════════════════════════
-        # BLOCK 2 — PORTFOLIO CONSTRUCTION
-        # ══════════════════════════════════════════════════════════════════════
-        block_header("2", "Portfolio Construction",
-                     "How the signal translates into a portfolio")
+        # ----- BLOCK 2: PORTFOLIO CONSTRUCTION -----
+        styled_section_label("2. PORTFOLIO CONSTRUCTION | SIGNAL TO PORTFOLIO")
 
         pc_c1, pc_c2 = st.columns([3, 2])
 
         with pc_c1:
-            section_header("SHARPE RATIO: EQUAL vs CAP-WEIGHT BY FREQUENCY")
+            styled_section_label("SHARPE RATIO: EQUAL vs CAP-WEIGHT BY FREQUENCY")
             freqs = ["monthly", "quarterly", "annual"]
             wts   = ["equal", "cap_weight"]
-            wt_colors = {"equal": ACCENT, "cap_weight": PURPLE}
+            wt_colors = {"equal": TOKENS["accent_primary"], "cap_weight": TOKENS["accent_info"]}
 
             fig_sh = go.Figure()
             for wt in wts:
@@ -713,36 +537,35 @@ with tab2:
                     x=[f.capitalize() for f in freqs],
                     y=sh_vals,
                     marker_color=wt_colors[wt],
-                    marker_line_color=BORDER, marker_line_width=1,
+                    marker_line_color=TOKENS["border_default"], marker_line_width=1,
                     text=[fmt2(v) for v in sh_vals],
                     textposition="outside",
-                    textfont=dict(size=10, color="#c9d1d9"),
+                    textfont=dict(size=10, color=TOKENS["text_secondary"]),
                 ))
-            fig_sh.add_hline(y=0, line_color=BORDER, line_width=1)
-            apply_layout(fig_sh, "Sharpe (Gross)")
-            fig_sh.update_layout(barmode="group", bargap=0.2)
+            fig_sh.add_hline(y=0, line_color=TOKENS["border_default"], line_width=1)
+            fig_sh.update_layout(
+                title="Sharpe (Gross)",
+                xaxis_title="Rebalance Frequency",
+                yaxis_title="Sharpe Ratio",
+                barmode="group", bargap=0.2,
+            )
+            apply_plotly_theme(fig_sh)
             st.plotly_chart(fig_sh, use_container_width=True)
 
         with pc_c2:
-            section_header("TURNOVER BY FREQUENCY")
-            for wt_val, wt_color, wt_label in [
-                ("equal",      ACCENT,  "Equal Weight"),
-                ("cap_weight", PURPLE,  "Cap Weight"),
-            ]:
+            styled_section_label("TURNOVER BY FREQUENCY")
+            for wt_val, wt_label in [("equal", "Equal Weight"),
+                                      ("cap_weight", "Cap Weight")]:
                 sub_wt = df_fa[df_fa["weighting"] == wt_val]
-                st.markdown(
-                    f"<div style='font-size:11px;font-weight:600;color:{wt_color};"
-                    f"margin:10px 0 4px 0'>{wt_label}</div>",
-                    unsafe_allow_html=True)
+                styled_section_label(wt_label.upper())
                 to_cols = st.columns(3)
                 for i, f in enumerate(freqs):
                     sub_f = sub_wt[sub_wt["frequency"] == f]
                     to_v = _safe(sub_f["avg_turnover"].values[0]) if len(sub_f) > 0 else np.nan
                     with to_cols[i]:
-                        kpi_card(f.capitalize(), pct(to_v), color="#f0f6fc")
+                        styled_kpi(f.capitalize(), pct(to_v))
 
-        # Equal-weight vs cap-weight detail table
-        section_header("EQUAL vs CAP-WEIGHT: FULL COMPARISON TABLE")
+        styled_section_label("EQUAL vs CAP-WEIGHT: FULL COMPARISON TABLE")
         comp_cols = ["frequency", "weighting", "return_gross", "return_net",
                      "sharpe_gross", "sharpe_net", "max_dd", "calmar",
                      "hit_rate", "avg_turnover", "mean_ic", "ic_ir"]
@@ -763,21 +586,17 @@ with tab2:
                 cmp[col] = cmp[col].apply(lambda v: fmt2(_safe(v)))
         st.dataframe(cmp, use_container_width=True, hide_index=True)
 
-        st.markdown(f"<div style='border-top:1px solid {BORDER};margin:24px 0 0 0'></div>",
-                    unsafe_allow_html=True)
+        styled_divider()
 
-        # ══════════════════════════════════════════════════════════════════════
-        # BLOCK 3 — PERFORMANCE
-        # ══════════════════════════════════════════════════════════════════════
-        block_header("3", "Performance",
-                     "Returns, risk-adjusted metrics, and factor regression")
+        # ----- BLOCK 3: PERFORMANCE -----
+        styled_section_label("3. PERFORMANCE | RETURNS, RISK-ADJUSTED METRICS, REGRESSION")
 
         show_net = st.checkbox("Compare gross vs net", value=True, key="show_net")
 
         perf_c1, perf_c2 = st.columns([3, 2])
 
         with perf_c1:
-            section_header("ANNUALISED RETURN BY FREQUENCY")
+            styled_section_label("ANNUALISED RETURN BY FREQUENCY")
             fig_ret = go.Figure()
             for wt in wts:
                 sub = df_fa[df_fa["weighting"] == wt]
@@ -809,50 +628,54 @@ with tab2:
                         text=[pct(v) for v in n_vals],
                         textposition="outside", textfont=dict(size=9),
                     ))
-            fig_ret.add_hline(y=0, line_color=BORDER, line_width=1)
-            apply_layout(fig_ret, "Annualised Return (%)")
-            fig_ret.update_layout(barmode="group", yaxis_ticksuffix="%")
+            fig_ret.add_hline(y=0, line_color=TOKENS["border_default"], line_width=1)
+            fig_ret.update_layout(
+                title="Annualised Return (%)",
+                xaxis_title="Rebalance Frequency",
+                yaxis_title="Return (%)",
+                barmode="group", yaxis_ticksuffix="%",
+            )
+            apply_plotly_theme(fig_ret)
             st.plotly_chart(fig_ret, use_container_width=True)
 
         with perf_c2:
-            section_header("KEY PERFORMANCE METRICS")
+            styled_section_label("KEY PERFORMANCE METRICS")
             if row_sel is not None:
                 metrics = [
                     ("Ann. Return (Gross)", pct(_safe(row_sel.get("return_gross", np.nan))),
-                     color_val(_safe(row_sel.get("return_gross", np.nan)))),
+                     delta_color(_safe(row_sel.get("return_gross", np.nan)))),
                     ("Ann. Return (Net)",   pct(_safe(row_sel.get("return_net", np.nan))),
-                     color_val(_safe(row_sel.get("return_net", np.nan)))),
+                     delta_color(_safe(row_sel.get("return_net", np.nan)))),
                     ("Sharpe (Gross)",      fmt2(_safe(row_sel.get("sharpe_gross", np.nan))),
-                     color_val(_safe(row_sel.get("sharpe_gross", np.nan)))),
+                     delta_color(_safe(row_sel.get("sharpe_gross", np.nan)))),
                     ("Sortino",             fmt2(_safe(row_sel.get("sortino_gross", np.nan))),
-                     color_val(_safe(row_sel.get("sortino_gross", np.nan)))),
+                     delta_color(_safe(row_sel.get("sortino_gross", np.nan)))),
                     ("Max Drawdown",        pct(_safe(row_sel.get("max_dd", np.nan))),
-                     color_val(_safe(row_sel.get("max_dd", np.nan)), -0.05)),
+                     delta_color(_safe(row_sel.get("max_dd", np.nan)), -0.05)),
                     ("Calmar",              fmt2(_safe(row_sel.get("calmar", np.nan))),
-                     color_val(_safe(row_sel.get("calmar", np.nan)))),
+                     delta_color(_safe(row_sel.get("calmar", np.nan)))),
                     ("Hit Rate vs SPY",     pct(_safe(row_sel.get("hit_rate", np.nan))),
-                     color_val(_safe(row_sel.get("hit_rate", np.nan)), 0.5)),
+                     delta_color(_safe(row_sel.get("hit_rate", np.nan)), 0.5)),
                     ("Alpha (Ann.)",        fmt_alpha(_safe(row_sel.get("alpha", np.nan))),
-                     color_val(_safe(row_sel.get("alpha", np.nan)))),
+                     delta_color(_safe(row_sel.get("alpha", np.nan)))),
                     ("Beta vs SPY",         fmt2(_safe(row_sel.get("beta", np.nan))),
-                     "#f0f6fc"),
-                    ("R²",                  fmt2(_safe(row_sel.get("r_squared", np.nan))),
-                     "#f0f6fc"),
+                     TOKENS["text_muted"]),
+                    ("R-squared",           fmt2(_safe(row_sel.get("r_squared", np.nan))),
+                     TOKENS["text_muted"]),
                 ]
                 m_c1, m_c2 = st.columns(2)
                 for i, (lbl, val, clr) in enumerate(metrics):
                     with (m_c1 if i % 2 == 0 else m_c2):
-                        kpi_card(lbl, val, color=clr)
-                        st.markdown("<div style='margin:4px 0'></div>", unsafe_allow_html=True)
+                        styled_kpi(lbl, val, delta="", delta_color=clr)
 
 
-# ══════════════════════════════════════════════════════════════════════════════
-# TAB 3 — PORTFOLIO COMPARISON
-# ══════════════════════════════════════════════════════════════════════════════
+# ======================================================================
+# TAB 3 | PORTFOLIO COMPARISON
+# ======================================================================
 
 with tab3:
     if df_all is None:
-        no_data_banner()
+        _no_data_banner()
     else:
         sc1, sc2, sc3 = st.columns([2, 2, 2])
         with sc1:
@@ -879,66 +702,65 @@ with tab3:
         def _g(sub, col):
             return _safe(sub[col].values[0]) if len(sub) > 0 and col in sub.columns else np.nan
 
-        # IC first — signal quality header
-        block_header("1", "Signal Quality (shared across portfolio types)")
+        styled_divider()
+        styled_section_label("1. SIGNAL QUALITY (SHARED ACROSS PORTFOLIO TYPES)")
         ic_lo = _g(lo, "mean_ic")
         icir_lo = _g(lo, "ic_ir")
         sq_c1, sq_c2, sq_c3, sq_c4 = st.columns(4)
         with sq_c1:
-            kpi_card("Mean IC", fmt2(ic_lo),
-                     color=color_val(ic_lo), note="(same for both types)")
+            styled_kpi("Mean IC", fmt2(ic_lo), delta="both types",
+                       delta_color=delta_color(ic_lo))
         with sq_c2:
-            kpi_card("IC IR", fmt2(icir_lo),
-                     color=GREEN if not np.isnan(icir_lo) and icir_lo > 0.5 else
-                           AMBER if not np.isnan(icir_lo) and icir_lo > 0 else RED)
+            ic_ir_col = (TOKENS["accent_success"] if not np.isnan(icir_lo) and icir_lo > 0.5
+                         else TOKENS["accent_warning"] if not np.isnan(icir_lo) and icir_lo > 0
+                         else TOKENS["accent_danger"])
+            styled_kpi("IC IR", fmt2(icir_lo), delta="", delta_color=ic_ir_col)
         with sq_c3:
-            kpi_card("Hit Rate (Long-Only)", pct(_g(lo, "hit_rate")),
-                     color=color_val(_g(lo, "hit_rate"), 0.5))
+            hr_lo = _g(lo, "hit_rate")
+            styled_kpi("Hit Rate (Long-Only)", pct(hr_lo), delta="",
+                       delta_color=delta_color(hr_lo, 0.5))
         with sq_c4:
-            kpi_card("Hit Rate (L/S)", pct(_g(ls, "hit_rate")),
-                     color=color_val(_g(ls, "hit_rate"), 0.5))
+            hr_ls = _g(ls, "hit_rate")
+            styled_kpi("Hit Rate (L/S)", pct(hr_ls), delta="",
+                       delta_color=delta_color(hr_ls, 0.5))
 
-        # Side-by-side portfolio comparison
-        block_header("2", "Long-Only vs Long/Short",
-                     "Q5 only vs Q5 long + Q1 short (dollar-neutral)")
+        styled_divider()
+        styled_section_label("2. LONG-ONLY vs LONG/SHORT | Q5 ONLY vs Q5 LONG + Q1 SHORT")
 
         lo_col, ls_col = st.columns(2)
 
         def _port_panel(sub, label, accent_color):
-            st.markdown(
-                f"<div style='font-size:13px;font-weight:700;color:{accent_color};"
-                f"padding:6px 0;border-bottom:2px solid {accent_color};margin-bottom:10px'>"
-                f"{label}</div>", unsafe_allow_html=True)
+            styled_section_label(label)
             items = [
-                ("Gross Return",  pct(_g(sub, "return_gross")), color_val(_g(sub, "return_gross"))),
-                ("Net Return",    pct(_g(sub, "return_net")),   color_val(_g(sub, "return_net"))),
-                ("Sharpe (G)",    fmt2(_g(sub, "sharpe_gross")), color_val(_g(sub, "sharpe_gross"))),
-                ("Sharpe (N)",    fmt2(_g(sub, "sharpe_net")),   color_val(_g(sub, "sharpe_net"))),
-                ("Max Drawdown",  pct(_g(sub, "max_dd")),        color_val(_g(sub, "max_dd"), -0.05)),
-                ("Sortino",       fmt2(_g(sub, "sortino_gross")), color_val(_g(sub, "sortino_gross"))),
-                ("Alpha",         fmt_alpha(_g(sub, "alpha")),    color_val(_g(sub, "alpha"))),
-                ("Calmar",        fmt2(_g(sub, "calmar")),        color_val(_g(sub, "calmar"))),
-                ("Avg Turnover",  pct(_g(sub, "avg_turnover")),   "#f0f6fc"),
-                ("Beta",          fmt2(_g(sub, "beta")),          "#f0f6fc"),
+                ("Gross Return",  pct(_g(sub, "return_gross")), delta_color(_g(sub, "return_gross"))),
+                ("Net Return",    pct(_g(sub, "return_net")),   delta_color(_g(sub, "return_net"))),
+                ("Sharpe (G)",    fmt2(_g(sub, "sharpe_gross")), delta_color(_g(sub, "sharpe_gross"))),
+                ("Sharpe (N)",    fmt2(_g(sub, "sharpe_net")),   delta_color(_g(sub, "sharpe_net"))),
+                ("Max Drawdown",  pct(_g(sub, "max_dd")),        delta_color(_g(sub, "max_dd"), -0.05)),
+                ("Sortino",       fmt2(_g(sub, "sortino_gross")), delta_color(_g(sub, "sortino_gross"))),
+                ("Alpha",         fmt_alpha(_g(sub, "alpha")),    delta_color(_g(sub, "alpha"))),
+                ("Calmar",        fmt2(_g(sub, "calmar")),        delta_color(_g(sub, "calmar"))),
+                ("Avg Turnover",  pct(_g(sub, "avg_turnover")),   TOKENS["text_muted"]),
+                ("Beta",          fmt2(_g(sub, "beta")),          TOKENS["text_muted"]),
             ]
             cols = st.columns(2)
             for i, (lbl, val, clr) in enumerate(items):
                 with cols[i % 2]:
-                    kpi_card(lbl, val, color=clr)
-                    st.markdown("<div style='margin:4px 0'></div>", unsafe_allow_html=True)
+                    styled_kpi(lbl, val, delta="", delta_color=clr)
 
         with lo_col:
-            _port_panel(lo, "LONG-ONLY (Q5)", ACCENT)
+            _port_panel(lo, "LONG-ONLY (Q5)", TOKENS["accent_primary"])
         with ls_col:
-            _port_panel(ls, "LONG / SHORT (Q5 − Q1)", PURPLE)
+            _port_panel(ls, "LONG / SHORT (Q5 MINUS Q1)", TOKENS["accent_info"])
 
-        # Gross vs net cost of trading
-        block_header("3", "Cost of Trading",
-                     "Gross vs net return: cost increases with rebalancing frequency")
+        styled_divider()
+        styled_section_label("3. COST OF TRADING | GROSS vs NET RETURN BY FREQUENCY")
         df_all_f = df_all[(df_all["factor"] == sel_pc_f) & (df_all["weighting"] == sel_pc_wt)]
         fig_gn = go.Figure()
-        for pt_val, pt_color, pt_label in [("long_only", ACCENT, "Long-Only"),
-                                            ("long_short", PURPLE, "Long/Short")]:
+        for pt_val, pt_color, pt_label in [
+            ("long_only", TOKENS["accent_primary"], "Long-Only"),
+            ("long_short", TOKENS["accent_info"], "Long/Short"),
+        ]:
             sub = df_all_f[df_all_f["portfolio_type"] == pt_val]
             g_v = [_safe(sub[sub["frequency"] == f]["return_gross"].values[0])
                    if len(sub[sub["frequency"] == f]) > 0 else np.nan for f in ["monthly","quarterly","annual"]]
@@ -947,112 +769,120 @@ with tab3:
             fig_gn.add_trace(go.Scatter(
                 x=[f.capitalize() for f in ["monthly","quarterly","annual"]],
                 y=[v * 100 if not np.isnan(v) else None for v in g_v],
-                name=f"{pt_label} Gross", line=dict(color=pt_color, width=2.5, dash="solid"),
+                name=f"{pt_label} Gross", line=dict(color=pt_color, width=1.5, dash="solid"),
                 mode="lines+markers", marker=dict(size=7),
             ))
             fig_gn.add_trace(go.Scatter(
                 x=[f.capitalize() for f in ["monthly","quarterly","annual"]],
                 y=[v * 100 if not np.isnan(v) else None for v in n_v],
-                name=f"{pt_label} Net", line=dict(color=pt_color, width=2, dash="dot"),
+                name=f"{pt_label} Net", line=dict(color=pt_color, width=1.5, dash="dot"),
                 mode="lines+markers", marker=dict(size=5),
             ))
-        fig_gn.add_hline(y=0, line_color=BORDER, line_width=1)
-        apply_layout(fig_gn, "Gross vs Net Annualised Return by Frequency (%)")
-        fig_gn.update_layout(yaxis_ticksuffix="%")
+        fig_gn.add_hline(y=0, line_color=TOKENS["border_default"], line_width=1)
+        fig_gn.update_layout(
+            title="Gross vs Net Annualised Return by Frequency",
+            xaxis_title="Rebalance Frequency",
+            yaxis_title="Annualised Return (%)",
+            yaxis_ticksuffix="%",
+        )
+        apply_plotly_theme(fig_gn)
         st.plotly_chart(fig_gn, use_container_width=True)
 
-        # Best combination
-        section_header("BEST COMBINATION FOR THIS FACTOR")
+        styled_section_label("BEST COMBINATION FOR THIS FACTOR")
         best_fac = df_all[df_all["factor"] == sel_pc_f]
         if not best_fac.empty:
             best_sh  = best_fac.loc[best_fac["sharpe_gross"].idxmax()]
             best_net = best_fac.loc[best_fac["return_net"].idxmax()]
             b1, b2 = st.columns(2)
             with b1:
-                st.markdown(
-                    f"<div style='background:{CARD_BG};border:1px solid {GREEN};"
-                    f"border-radius:2px;padding:12px 16px'>"
-                    f"<div style='font-size:10px;color:{TEXT_COLOR};text-transform:uppercase;"
-                    f"letter-spacing:0.5px;margin-bottom:6px'>Highest Sharpe</div>"
-                    f"<div style='font-size:13px;font-weight:600;color:{GREEN}'>"
-                    f"{best_sh['frequency'].capitalize()} · {best_sh['weighting']} · {best_sh['portfolio_type']}</div>"
-                    f"<div style='font-size:11px;color:#c9d1d9;margin-top:4px'>"
-                    f"Sharpe: {fmt2(_safe(best_sh['sharpe_gross']))} · "
-                    f"Return: {pct(_safe(best_sh['return_gross']))} · "
-                    f"IC: {fmt2(_safe(best_sh['mean_ic']))}</div></div>",
-                    unsafe_allow_html=True)
+                styled_card(
+                    f"<b style='color:{TOKENS['accent_success']}'>Highest Sharpe.</b> "
+                    f"{best_sh['frequency'].capitalize()} | {best_sh['weighting']} | "
+                    f"{best_sh['portfolio_type']}. "
+                    f"Sharpe {fmt2(_safe(best_sh['sharpe_gross']))} | "
+                    f"Return {pct(_safe(best_sh['return_gross']))} | "
+                    f"IC {fmt2(_safe(best_sh['mean_ic']))}",
+                    accent_color=TOKENS["accent_success"],
+                )
             with b2:
-                st.markdown(
-                    f"<div style='background:{CARD_BG};border:1px solid {ACCENT};"
-                    f"border-radius:2px;padding:12px 16px'>"
-                    f"<div style='font-size:10px;color:{TEXT_COLOR};text-transform:uppercase;"
-                    f"letter-spacing:0.5px;margin-bottom:6px'>Highest Net Return</div>"
-                    f"<div style='font-size:13px;font-weight:600;color:{ACCENT}'>"
-                    f"{best_net['frequency'].capitalize()} · {best_net['weighting']} · {best_net['portfolio_type']}</div>"
-                    f"<div style='font-size:11px;color:#c9d1d9;margin-top:4px'>"
-                    f"Net: {pct(_safe(best_net['return_net']))} · "
-                    f"Sharpe: {fmt2(_safe(best_net['sharpe_net']))} · "
-                    f"Turnover: {pct(_safe(best_net['avg_turnover']))}</div></div>",
-                    unsafe_allow_html=True)
+                styled_card(
+                    f"<b style='color:{TOKENS['accent_primary']}'>Highest Net Return.</b> "
+                    f"{best_net['frequency'].capitalize()} | {best_net['weighting']} | "
+                    f"{best_net['portfolio_type']}. "
+                    f"Net {pct(_safe(best_net['return_net']))} | "
+                    f"Sharpe {fmt2(_safe(best_net['sharpe_net']))} | "
+                    f"Turnover {pct(_safe(best_net['avg_turnover']))}",
+                    accent_color=TOKENS["accent_primary"],
+                )
 
 
-# ══════════════════════════════════════════════════════════════════════════════
-# TAB 4 — METHODOLOGY
-# ══════════════════════════════════════════════════════════════════════════════
+# ======================================================================
+# TAB 4 | METHODOLOGY
+# ======================================================================
 
 with tab4:
-    section_header("FACTOR DEFINITIONS")
+    styled_section_label("FACTOR DEFINITIONS")
+    accent = TOKENS["accent_primary"]
+    warn = TOKENS["accent_warning"]
+    border = TOKENS["border_default"]
+    text_pri = TOKENS["text_primary"]
+    text_sec = TOKENS["text_secondary"]
+    text_mut = TOKENS["text_muted"]
+    success = TOKENS["accent_success"]
+    danger = TOKENS["accent_danger"]
+    bg = TOKENS["bg_surface"]
+
     st.markdown(f"""
-    <div style='background:{CARD_BG};border:1px solid {BORDER};border-radius:2px;
-                padding:16px 20px;font-size:12px'>
+    <div style='background:{bg};border:1px solid {border};border-radius:3px;
+                padding:16px 20px;font-size:0.75rem'>
     <table style='width:100%;border-collapse:collapse'>
-      <thead><tr style='border-bottom:1px solid {BORDER}'>
-        <th style='color:{ACCENT};text-align:left;padding:6px 10px;font-size:10px;
-                   text-transform:uppercase;letter-spacing:0.5px'>Factor</th>
-        <th style='color:{ACCENT};text-align:left;padding:6px 10px;font-size:10px;
-                   text-transform:uppercase;letter-spacing:0.5px'>Metric</th>
-        <th style='color:{ACCENT};text-align:left;padding:6px 10px;font-size:10px;
-                   text-transform:uppercase;letter-spacing:0.5px'>Direction</th>
-        <th style='color:{ACCENT};text-align:left;padding:6px 10px;font-size:10px;
-                   text-transform:uppercase;letter-spacing:0.5px'>Source</th>
-        <th style='color:{AMBER};text-align:left;padding:6px 10px;font-size:10px;
-                   text-transform:uppercase;letter-spacing:0.5px'>PIT Clean?</th>
+      <thead><tr style='border-bottom:1px solid {border}'>
+        <th style='color:{accent};text-align:left;padding:6px 10px;font-size:0.65rem;
+                   text-transform:uppercase;letter-spacing:0.1em'>Factor</th>
+        <th style='color:{accent};text-align:left;padding:6px 10px;font-size:0.65rem;
+                   text-transform:uppercase;letter-spacing:0.1em'>Metric</th>
+        <th style='color:{accent};text-align:left;padding:6px 10px;font-size:0.65rem;
+                   text-transform:uppercase;letter-spacing:0.1em'>Direction</th>
+        <th style='color:{accent};text-align:left;padding:6px 10px;font-size:0.65rem;
+                   text-transform:uppercase;letter-spacing:0.1em'>Source</th>
+        <th style='color:{warn};text-align:left;padding:6px 10px;font-size:0.65rem;
+                   text-transform:uppercase;letter-spacing:0.1em'>PIT Clean?</th>
       </tr></thead>
       <tbody>
-        <tr style='border-bottom:1px solid {GRID_COLOR}'>
-          <td style='padding:6px 10px;color:#f0f6fc;font-weight:600'>Value</td>
-          <td style='padding:6px 10px;color:#c9d1d9'>Earnings Yield (1 / PE)</td>
-          <td style='padding:6px 10px;color:{GREEN}'>Higher to Cheaper</td>
-          <td style='padding:6px 10px;color:{TEXT_COLOR}'>yfinance trailingPE</td>
-          <td style='padding:6px 10px;color:{RED}'>No (current only)</td>
+        <tr style='border-bottom:1px solid {border}'>
+          <td style='padding:6px 10px;color:{text_pri};font-weight:600'>Value</td>
+          <td style='padding:6px 10px;color:{text_sec}'>Earnings Yield (1 / PE)</td>
+          <td style='padding:6px 10px;color:{success}'>Higher is cheaper</td>
+          <td style='padding:6px 10px;color:{text_mut}'>yfinance trailingPE</td>
+          <td style='padding:6px 10px;color:{danger}'>No (current only)</td>
         </tr>
-        <tr style='border-bottom:1px solid {GRID_COLOR}'>
-          <td style='padding:6px 10px;color:#f0f6fc;font-weight:600'>Momentum</td>
-          <td style='padding:6px 10px;color:#c9d1d9'>12-month return, skip last 1m (12-1)</td>
-          <td style='padding:6px 10px;color:{GREEN}'>Higher to Stronger trend</td>
-          <td style='padding:6px 10px;color:{TEXT_COLOR}'>Daily close prices</td>
-          <td style='padding:6px 10px;color:{GREEN}'>Yes</td>
+        <tr style='border-bottom:1px solid {border}'>
+          <td style='padding:6px 10px;color:{text_pri};font-weight:600'>Momentum</td>
+          <td style='padding:6px 10px;color:{text_sec}'>12-month return, skip last 1m (12-1)</td>
+          <td style='padding:6px 10px;color:{success}'>Higher is stronger trend</td>
+          <td style='padding:6px 10px;color:{text_mut}'>Daily close prices</td>
+          <td style='padding:6px 10px;color:{success}'>Yes</td>
         </tr>
-        <tr style='border-bottom:1px solid {GRID_COLOR}'>
-          <td style='padding:6px 10px;color:#f0f6fc;font-weight:600'>Quality</td>
-          <td style='padding:6px 10px;color:#c9d1d9'>Return on Equity (ROE)</td>
-          <td style='padding:6px 10px;color:{GREEN}'>Higher to More profitable</td>
-          <td style='padding:6px 10px;color:{TEXT_COLOR}'>yfinance returnOnEquity</td>
-          <td style='padding:6px 10px;color:{RED}'>No (current only)</td>
+        <tr style='border-bottom:1px solid {border}'>
+          <td style='padding:6px 10px;color:{text_pri};font-weight:600'>Quality</td>
+          <td style='padding:6px 10px;color:{text_sec}'>Return on Equity (ROE)</td>
+          <td style='padding:6px 10px;color:{success}'>Higher is more profitable</td>
+          <td style='padding:6px 10px;color:{text_mut}'>yfinance returnOnEquity</td>
+          <td style='padding:6px 10px;color:{danger}'>No (current only)</td>
         </tr>
-        <tr style='border-bottom:1px solid {GRID_COLOR}'>
-          <td style='padding:6px 10px;color:#f0f6fc;font-weight:600'>Size</td>
-          <td style='padding:6px 10px;color:#c9d1d9'>log(Market Cap): inverted</td>
-          <td style='padding:6px 10px;color:{RED}'>Lower to Small cap premium</td>
-          <td style='padding:6px 10px;color:{TEXT_COLOR}'>yfinance marketCap</td>
-          <td style='padding:6px 10px;color:{RED}'>No (current only)</td>
+        <tr style='border-bottom:1px solid {border}'>
+          <td style='padding:6px 10px;color:{text_pri};font-weight:600'>Size</td>
+          <td style='padding:6px 10px;color:{text_sec}'>log(Market Cap), inverted</td>
+          <td style='padding:6px 10px;color:{danger}'>Lower is small cap premium</td>
+          <td style='padding:6px 10px;color:{text_mut}'>yfinance marketCap</td>
+          <td style='padding:6px 10px;color:{danger}'>No (current only)</td>
         </tr>
         <tr>
-          <td style='padding:6px 10px;color:#f0f6fc;font-weight:600'>Low Vol.</td>
-          <td style='padding:6px 10px;color:#c9d1d9'>60-day rolling σ (annualised): inverted</td>
-          <td style='padding:6px 10px;color:{RED}'>Lower to Better risk-adj.</td>
-          <td style='padding:6px 10px;color:{TEXT_COLOR}'>Daily close prices</td>
-          <td style='padding:6px 10px;color:{GREEN}'>Yes</td>
+          <td style='padding:6px 10px;color:{text_pri};font-weight:600'>Low Vol.</td>
+          <td style='padding:6px 10px;color:{text_sec}'>60-day rolling sigma (annualised), inverted</td>
+          <td style='padding:6px 10px;color:{danger}'>Lower is better risk-adj.</td>
+          <td style='padding:6px 10px;color:{text_mut}'>Daily close prices</td>
+          <td style='padding:6px 10px;color:{success}'>Yes</td>
         </tr>
       </tbody>
     </table>
@@ -1060,60 +890,50 @@ with tab4:
 
     m_c1, m_c2 = st.columns(2)
     with m_c1:
-        section_header("SIGNAL TIMING: NO LOOKAHEAD")
-        st.markdown(f"""
-        <div style='background:{CARD_BG};border:1px solid {BORDER};border-radius:2px;
-                    padding:14px 16px;font-size:12px;line-height:1.9;color:#c9d1d9'>
-        At time <i>t</i>, factor scores use <b style='color:#f0f6fc'>only data available at t</b>.
-        Portfolio is constructed at <i>t</i>. Returns measured <i>t to t+1</i>.<br><br>
-        <b style='color:#f0f6fc'>Normalisation:</b> Cross-sectional percentile rank [0,1]
-        at every rebalance. Size and Low-Vol ranked inversely (lower raw = higher rank).<br><br>
-        <b style='color:#f0f6fc'>Quintile sort:</b> Q5 = top-ranked. Q1 = lowest-ranked.<br><br>
-        <b style='color:#f0f6fc'>Long-Only:</b> equal or cap-weighted Q5. Weights to 1.0<br>
-        <b style='color:#f0f6fc'>Long/Short:</b> +0.5 Q5, −0.5 Q1. Net zero exposure.
-        </div>""", unsafe_allow_html=True)
+        styled_section_label("SIGNAL TIMING: NO LOOKAHEAD")
+        styled_card(
+            f"At time <i>t</i>, factor scores use <b style='color:{text_pri}'>only data available at t</b>. "
+            f"Portfolio is constructed at <i>t</i>. Returns measured <i>t to t+1</i>.<br><br>"
+            f"<b style='color:{text_pri}'>Normalisation:</b> Cross-sectional percentile rank [0,1] "
+            f"at every rebalance. Size and Low-Vol ranked inversely (lower raw = higher rank).<br><br>"
+            f"<b style='color:{text_pri}'>Quintile sort:</b> Q5 = top-ranked. Q1 = lowest-ranked.<br><br>"
+            f"<b style='color:{text_pri}'>Long-Only:</b> equal or cap-weighted Q5. Weights to 1.0.<br>"
+            f"<b style='color:{text_pri}'>Long/Short:</b> +0.5 Q5, -0.5 Q1. Net zero exposure."
+        )
 
-        section_header("TRANSACTION COSTS")
-        st.markdown(f"""
-        <div style='background:{CARD_BG};border:1px solid {BORDER};border-radius:2px;
-                    padding:14px 16px;font-size:12px;line-height:1.9;color:#c9d1d9'>
-        Net Return = Gross − Turnover × <b style='color:#f0f6fc'>10 bps</b><br>
-        Turnover = Σ|Δweight| per rebalance<br>
-        Applied only at rebalance dates (monthly / quarterly / annual)<br>
-        No market impact, slippage, or bid-ask modelled.
-        </div>""", unsafe_allow_html=True)
+        styled_section_label("TRANSACTION COSTS")
+        styled_card(
+            f"Net Return = Gross minus Turnover x <b style='color:{text_pri}'>10 bps</b>.<br>"
+            f"Turnover = sum of absolute weight change per rebalance.<br>"
+            f"Applied only at rebalance dates (monthly, quarterly, annual).<br>"
+            f"No market impact, slippage, or bid-ask modelled."
+        )
 
     with m_c2:
-        section_header("ANALYTICS DEFINITIONS")
-        st.markdown(f"""
-        <div style='background:{CARD_BG};border:1px solid {BORDER};border-radius:2px;
-                    padding:14px 16px;font-size:12px;line-height:1.9;color:#c9d1d9'>
-        <b style='color:#f0f6fc'>CAGR</b>: geometric compound annual growth<br>
-        <b style='color:#f0f6fc'>Sharpe</b>: mean excess return / σ × √periods/yr<br>
-        <b style='color:#f0f6fc'>Sortino</b>: Sharpe using only downside σ<br>
-        <b style='color:#f0f6fc'>Max DD</b>: worst peak-to-trough (with 1.0 baseline)<br>
-        <b style='color:#f0f6fc'>Calmar</b>: Ann. Return / |Max DD|<br>
-        <b style='color:#f0f6fc'>Hit Rate</b>: % periods outperforming SPY (strict &gt;)<br>
-        <b style='color:#f0f6fc'>IC</b>: Spearman(factor_scores_t, returns_t to t+1)<br>
-        <b style='color:#f0f6fc'>IC IR</b>: Mean IC / Std(IC): signal consistency<br>
-        <b style='color:#f0f6fc'>Alpha / Beta</b>: OLS regression vs SPY (daily returns)
-        </div>""", unsafe_allow_html=True)
+        styled_section_label("ANALYTICS DEFINITIONS")
+        styled_card(
+            f"<b style='color:{text_pri}'>CAGR</b>: geometric compound annual growth.<br>"
+            f"<b style='color:{text_pri}'>Sharpe</b>: mean excess return / sigma x sqrt(periods/yr).<br>"
+            f"<b style='color:{text_pri}'>Sortino</b>: Sharpe using only downside sigma.<br>"
+            f"<b style='color:{text_pri}'>Max DD</b>: worst peak-to-trough (1.0 baseline).<br>"
+            f"<b style='color:{text_pri}'>Calmar</b>: Ann. Return / abs(Max DD).<br>"
+            f"<b style='color:{text_pri}'>Hit Rate</b>: % periods outperforming SPY (strict &gt;).<br>"
+            f"<b style='color:{text_pri}'>IC</b>: Spearman(factor_scores_t, returns_t to t+1).<br>"
+            f"<b style='color:{text_pri}'>IC IR</b>: Mean IC / Std(IC), signal consistency.<br>"
+            f"<b style='color:{text_pri}'>Alpha / Beta</b>: OLS regression vs SPY (daily returns)."
+        )
 
-        section_header("KNOWN LIMITATIONS")
-        st.markdown(f"""
-        <div style='background:#1c1200;border:1px solid {AMBER};border-radius:2px;
-                    padding:14px 16px;font-size:12px;line-height:1.9;color:#c9a227'>
-        <b style='color:{AMBER}'>Survivorship Bias.</b>
-        <span style='color:#c9d1d9'> Universe = today's S&P 500. Firms that failed 2014-2026 excluded.</span><br>
-        <b style='color:{AMBER}'>Non-PIT Fundamentals.</b>
-        <span style='color:#c9d1d9'> PE, ROE, and market cap are current values applied historically: not quarterly filings.</span><br>
-        <b style='color:{AMBER}'>Cap-Weight Not PIT-Clean.</b>
-        <span style='color:#c9d1d9'> Cap-weighted portfolios use current market cap for historical weighting.
-        Historical market cap at each rebalance date would be required for a clean backtest.</span><br>
-        <b style='color:{AMBER}'>No Shorting Costs.</b>
-        <span style='color:#c9d1d9'> L/S portfolios omit borrow costs and margin.</span><br>
-        <b style='color:{AMBER}'>Risk-Free Rate = 0%.</b>
-        <span style='color:#c9d1d9'> Conservative assumption: raises Sharpe vs actual T-bill hurdle.</span><br>
-        <b style='color:{AMBER}'>No Market Impact.</b>
-        <span style='color:#c9d1d9'> S&P 500 stocks assumed fully liquid at close prices.</span>
-        </div>""", unsafe_allow_html=True)
+        styled_section_label("KNOWN LIMITATIONS")
+        styled_card(
+            f"<b style='color:{warn}'>Survivorship Bias.</b> Universe = today's S&P 500. "
+            f"Firms that failed 2014-2026 excluded.<br>"
+            f"<b style='color:{warn}'>Non-PIT Fundamentals.</b> PE, ROE, and market cap are "
+            f"current values applied historically, not quarterly filings.<br>"
+            f"<b style='color:{warn}'>Cap-Weight Not PIT-Clean.</b> Cap-weighted portfolios use "
+            f"current market cap for historical weighting.<br>"
+            f"<b style='color:{warn}'>No Shorting Costs.</b> L/S portfolios omit borrow costs and margin.<br>"
+            f"<b style='color:{warn}'>Risk-Free Rate = 0%.</b> Conservative assumption: raises "
+            f"Sharpe vs actual T-bill hurdle.<br>"
+            f"<b style='color:{warn}'>No Market Impact.</b> S&P 500 stocks assumed fully liquid at close prices.",
+            accent_color=TOKENS["accent_warning"],
+        )
