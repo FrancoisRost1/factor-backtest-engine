@@ -4,3 +4,11 @@ data/cache/
 .pytest_cache/
 *.pkl
 .DS_Store
+
+# secrets
+.env
+.env.local
+.env.*.local
+.streamlit/secrets.toml
+*.pem
+*.key

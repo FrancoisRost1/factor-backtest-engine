@@ -1,5 +1,5 @@
 """
-Core backtesting engine: runs all 60 factor × frequency × weighting combinations.
+Core backtesting engine: runs all 72 factor × frequency × weighting × portfolio_type combinations.
 
 For each combination the engine:
   1. Generates rebalancing dates (monthly / quarterly / annual)

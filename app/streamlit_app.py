@@ -174,7 +174,7 @@ def load_quintile_returns(factor: str, freq: str, wt: str) -> Optional[pd.DataFr
 
 styled_header(
     "Factor Backtest Engine",
-    "S&P 500 | 5 Factors | 2016-2026 | 60 Combinations",
+    "S&P 500 | 5 Factors + Composite | 2016-2026 | 72 Combinations",
 )
 
 styled_card(
@@ -191,7 +191,7 @@ def _no_data_banner():
     styled_card(
         f"<b style='color:{TOKENS['accent_warning']}'>No results found.</b> "
         f"Run the backtest pipeline first: <code>python main.py</code>. "
-        f"This fetches data from Yahoo Finance, runs all 60 backtest combinations, "
+        f"This fetches data from Yahoo Finance, runs all 72 backtest combinations, "
         f"and saves results to <code>outputs/backtest_results.csv</code>.",
         accent_color=TOKENS["accent_warning"],
     )

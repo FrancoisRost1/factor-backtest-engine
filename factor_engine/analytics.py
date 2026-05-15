@@ -243,7 +243,7 @@ def compute_all_metrics(
 
     Convenience wrapper that calls all individual metric functions and bundles
     their outputs into a single dict.  Used by main.py to avoid repetitive
-    per-metric calls across the 60 backtest combinations.
+    per-metric calls across the 72 backtest combinations.
 
     Parameters
     ----------
